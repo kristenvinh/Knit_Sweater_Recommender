@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sweater Recommender</title>
+    <!-- 1. Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. Set up Tailwind config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'spin-slow': 'spin 2s linear infinite',
+                    },
+                },
+            },
+        }
+    </script>
+    
+    <!-- 3. Custom CSS for file input and loader -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Custom file input */
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-input-label {
+            display: block;
+            border: 2px dashed #4b5563; /* gray-600 */
+            border-radius: 0.5rem; /* rounded-lg */
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s ease-in-out;
+        }
+
+        .file-input-wrapper:hover .file-input-label,
+        .file-input-wrapper.dragging .file-input-label {
+            border-color: #3b82f6; /* blue-500 */
+            background-color: #1f2937; /* gray-800 */
+        }
+
+        /* Simple spinning loader */
+        .loader {
+            border: 4px solid #f3f3f3; /* gray-100 */
+            border-top: 4px solid #3b82f6; /* blue-500 */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-gray-200 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">Ravelry Sweater Recommendation</h1>
+            <p class="text-lg text-gray-400">Find your next pattern. Upload an image to get started.</p>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Upload Area -->
+            <div class="bg-gray-800 p-6 rounded-lg shadow-xl mb-8">
+                <div class="grid grid-cols-1 gap-6 items-center">
+                    
+                    <!-- File Input / Drop Zone -->
+                    <div class="file-input-wrapper" id="file-wrapper">
+                        <label for="file-upload" class="file-input-label" id="file-label">
+                                Click to upload or drag and drop
+                            </span>
+                            <span class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</span>
+                        </label>
+                        <input id="file-upload" name="file-upload" type="file" class="sr-only" accept="image/png, image/jpeg, image/gif">
+                    </div>
+
+                    <!-- Image Preview -->
+                    <div id="image-preview-container" class="hidden">
+                        <img id="image-preview" src="" alt="Image preview" class="w-full h-auto max-h-72 object-contain rounded-lg">
+                        <p id="file-name" class="text-center text-sm text-gray-400 mt-2"></p>
+                    </div>
+
+                </div>
+                
+                <!-- Submit Button -->
+                <div class="mt-6 text-center">
+                    <button id="submit-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Get Recommendations
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading and Results Section -->
+            <div>
+                <!-- Loading Indicator -->
+                <div id="loading-spinner" class="hidden flex-col items-center justify-center py-12">
+                    <div class="loader"></div>
+                    <p class="mt-4 text-lg text-gray-400">Finding patterns... this might take a moment.</p>
+                </div>
+
+                <!-- Error Message -->
+                <div id="error-message" class="hidden text-center py-12 bg-red-900 bg-opacity-30 text-red-300 rounded-lg p-4">
+                    <!-- Error content will be set here -->
+                </div>
+
+                <!-- Results Grid -->
+                <div id="results-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    <!-- Recommendation cards will be injected here -->
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Get all the DOM elements we need
+        const fileUpload = document.getElementById('file-upload');
+        const fileWrapper = document.getElementById('file-wrapper');
+        const fileLabel = document.getElementById('file-label');
+        
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const fileNameElement = document.getElementById('file-name');
+        
+        const submitButton = document.getElementById('submit-button');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const resultsGrid = document.getElementById('results-grid');
+        const errorMessageElement = document.getElementById('error-message');
+
+        let selectedFile = null;
+
+        // --- 1. Handle File Selection & Preview ---
+        
+        // Function to update the preview
+        function showPreview(file) {
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                imagePreview.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+
+            fileNameElement.textContent = file.name;
+            imagePreviewContainer.classList.remove('hidden');
+            fileWrapper.classList.add('hidden'); // Hide the file input
+            submitButton.disabled = false;
+        }
+
+        // Listener for file input click
+        fileUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                showPreview(file);
+            }
+        });
+
+        // Add drag-and-drop support
+        fileWrapper.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileWrapper.classList.add('dragging');
+        });
+        fileWrapper.addEventListener('dragleave', () => {
+            fileWrapper.classList.remove('dragging');
+        });
+        fileWrapper.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileWrapper.classList.remove('dragging');
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                fileUpload.files = e.dataTransfer.files; // Set the file input's files
+                showPreview(file);
+            }
+        });
+        
+        // --- 2. Handle Form Submission ---
+
+        submitButton.addEventListener('click', handleSubmit);
+
+        async function handleSubmit() {
+            if (!selectedFile) {
+                alert('Please select a file first.');
+                return;
+            }
+
+            // A. Set up the UI for loading
+            loadingSpinner.classList.remove('hidden');
+            loadingSpinner.classList.add('flex'); // Make it visible and centered
+            errorMessageElement.classList.add('hidden');
+            resultsGrid.innerHTML = ''; // Clear previous results
+            submitButton.disabled = true;
+
+            // B. Create FormData
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            // C. Make the API call
+            try {
+                // IMPORTANT: Update this URL if your backend runs on a different port
+                const response = await fetch('http://127.0.0.1:8000/recommend', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    // Handle server errors
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `Server error: ${response.status}`);
+                }
+
+                // D. Process the successful response
+                const data = await response.json();
+                displayResults(data.recommendations);
+
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                displayError(`Failed to get recommendations. ${error.message}`);
+            } finally {
+                // E. Clean up the UI
+                loadingSpinner.classList.add('hidden');
+                loadingSpinner.classList.remove('flex');
+                submitButton.disabled = false;
+            }
+        }
+
+        // --- 3. Display Results ---
+
+        function displayResults(recommendations) {
+            if (!recommendations || recommendations.length === 0) {
+                displayError('No recommendations found for this image.');
+                return;
+            }
+
+            resultsGrid.innerHTML = ''; // Clear again just in case
+
+            recommendations.forEach(item => {
+                // Use a placeholder if no thumbnail is available
+                const imageUrl = item.thumbnail || 'https://placehold.co/300x300/374151/9ca3af?text=No+Image';
+
+                // Calculate similarity score
+                // Cosine distance is 0 for identical, 1 for different.
+                // Similarity = 1 - distance
+                const similarity = (1 - item.distance_score) * 100;
+
+                const card = `
+                    <div class="bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-all duration-300 transform hover:scale-105">
+                        <a href="${item.url || '#'}" target="_blank" rel="noopener noreferrer">
+                            <img src="${imageUrl}" alt="${item.name || 'Pattern'}" class="w-full h-48 object-cover" onerror="this.src='https://placehold.co/300x300/374151/9ca3af?text=No+Image'">
+                            <div class="p-4">
+                                <h3 class="font-semibold text-white truncate" title="${item.name || 'Unknown Pattern'}">
+                                    ${item.name || 'Unknown Pattern'}
+                                </h3>
+                                <p class="text-sm text-gray-400">Pattern ID: ${item.pattern_id}</p>
+                                <p class="text-sm text-blue-400 font-medium mt-1">
+                                    ${similarity.toFixed(1)}% Match
+                                </p>
+                            </div>
+                        </a>
+                    </div>
+                `;
+                resultsGrid.innerHTML += card;
+            });
+        }
+
+        // --- 4. Display Error ---
+
+        function displayError(message) {
+            errorMessageElement.textContent = message;
+            errorMessageElement.classList.remove('hidden');
+        }
+
+    </script>
+
+</body>
+</html>
