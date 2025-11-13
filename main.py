@@ -9,16 +9,28 @@ import numpy as np
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+import base64
 
 #Code written with assistance from Gemini AI
 
 # --- Import Your Feature Extraction Code ---
 # This will load the DINOv2 and YOLO models as well.
 try:
-    from dino_feature_extraction import extract_features, FEATURE_DIM
+    from dino_feature_extraction import extract_features, FEATURE_DIM, model, processor
 except ImportError:
     print("Error: Could not import 'dino_feature_extraction.py'.")
     print("Please make sure it's in the same directory as main.py.")
+    exit()
+except RuntimeError as e:
+    print(f"Error during model loading in 'dino_feature_extraction.py': {e}")
+    print("This often happens if CUDA is not available or 'transformers' is not installed.")
+    exit()
+
+# --- Import Your XAI Utilities ---
+try:
+    from xaiutil import generate_xai_heatmap_bytes
+except ImportError:
+    print("Error: Could not import 'xaiutil.py'.")
     exit()
 
 # --- Configuration & Constants ---
@@ -190,7 +202,7 @@ async def recommend_sweaters(file: UploadFile = File(...)):
         query_labels = labels[0]
         query_distances = distances[0]
 
-        # --- 3. Map IDs & Prep for Reddit ---
+        # --- 3. Map IDs & Prep for Ravelry ---
         print("Mapping results to pattern IDs...")
         pattern_list = app_state["pattern_id_list"]
         
@@ -223,8 +235,25 @@ async def recommend_sweaters(file: UploadFile = File(...)):
             base_res.update(reddit_details_list[i])
             final_recommendations.append(base_res)
 
-        return {"recommendations": final_recommendations}
+    
+        print("Generating XAI heatmap...")
+            # Run the CPU-heavy XAI task in a separate thread
+        heatmap_bytes = await asyncio.to_thread(
+                generate_xai_heatmap_bytes, 
+                temp_file_path, 
+                model, 
+                processor
+            )
+            
+        heatmap_base64 = None
+        if heatmap_bytes:
+            heatmap_base64 = base64.b64encode(heatmap_bytes).decode('utf-8')
+            print("Heatmap generated and encoded.")
 
+        return {
+            "recommendations": final_recommendations,
+            "xai_heatmap_base64": heatmap_base64,
+        }
     except Exception as e:
         # Catch any other errors
         raise HTTPException(500, str(e))

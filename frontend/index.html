@@ -1,14 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sweater Recommender</title>
-    <!-- 1. Load Tailwind CSS -->
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- 2. Set up Tailwind config -->
     <script>
         tailwind.config = {
             theme: {
@@ -16,290 +13,244 @@
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
                     },
-                    animation: {
-                        'spin-slow': 'spin 2s linear infinite',
-                    },
                 },
             },
         }
     </script>
-    
-    <!-- 3. Custom CSS for file input and loader -->
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
+        /* Simple spinner animation */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
-
-        /* Custom file input */
-        .file-input-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-        }
-
-        .file-input-wrapper input[type=file] {
-            font-size: 100px;
-            position: absolute;
-            left: 0;
-            top: 0;
-            opacity: 0;
-            cursor: pointer;
-        }
-
-        .file-input-label {
-            display: block;
-            border: 2px dashed #4b5563; /* gray-600 */
-            border-radius: 0.5rem; /* rounded-lg */
-            padding: 2rem;
-            text-align: center;
-            cursor: pointer;
-            transition: border-color 0.2s ease-in-out;
-        }
-
-        .file-input-wrapper:hover .file-input-label,
-        .file-input-wrapper.dragging .file-input-label {
-            border-color: #3b82f6; /* blue-500 */
-            background-color: #1f2937; /* gray-800 */
-        }
-
-        /* Simple spinning loader */
-        .loader {
-            border: 4px solid #f3f3f3; /* gray-100 */
-            border-top: 4px solid #3b82f6; /* blue-500 */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, .1);
+            border-left-color: #4f46e5; /* indigo-600 */
             border-radius: 50%;
             width: 40px;
             height: 40px;
             animation: spin 1s linear infinite;
         }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
     </style>
 </head>
-
-<body class="bg-gray-900 text-gray-200 min-h-screen p-4 md:p-8">
-
-    <div class="max-w-6xl mx-auto">
+<body class="bg-gray-50 h-full font-sans antialiased">
+    <div class="flex flex-col min-h-screen">
         <!-- Header -->
-        <header class="text-center mb-8">
-            <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">Ravelry Sweater Recommendation</h1>
-            <p class="text-lg text-gray-400">Find your next pattern. Upload an image to get started.</p>
+        <header class="bg-white shadow-sm">
+            <div class="max-w-4xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+                <h1 class="text-2xl font-bold text-gray-900">
+                    Knitwear Pattern Recommender
+                </h1>
+                <p class="text-sm text-gray-600">
+                    Upload a photo of a sweater to find similar Ravelry patterns.
+                </p>
+            </div>
         </header>
 
         <!-- Main Content -->
-        <main>
-            <!-- Upload Area -->
-            <div class="bg-gray-800 p-6 rounded-lg shadow-xl mb-8">
-                <div class="grid grid-cols-1 gap-6 items-center">
-                    
-                    <!-- File Input / Drop Zone -->
-                    <div class="file-input-wrapper" id="file-wrapper">
-                        <label for="file-upload" class="file-input-label" id="file-label">
-                                Click to upload or drag and drop
-                            </span>
-                            <span class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</span>
+        <main class="flex-grow container mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
+            
+            <!-- Upload Section -->
+            <section id="upload-section" class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">1. Upload Your Image</h2>
+                <div class="flex flex-col sm:flex-row sm:items-start sm:space-x-6">
+                    <!-- File Input -->
+                    <div class="flex-shrink-0">
+                        <label for="file-input" class="cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                            <span>Choose a file</span>
+                            <input id="file-input" name="file-input" type="file" class="sr-only" accept="image/*">
                         </label>
-                        <input id="file-upload" name="file-upload" type="file" class="sr-only" accept="image/png, image/jpeg, image/gif">
                     </div>
-
+                    
                     <!-- Image Preview -->
-                    <div id="image-preview-container" class="hidden">
-                        <img id="image-preview" src="" alt="Image preview" class="w-full h-auto max-h-72 object-contain rounded-lg">
-                        <p id="file-name" class="text-center text-sm text-gray-400 mt-2"></p>
+                    <div class="mt-4 sm:mt-0 sm:flex-grow">
+                        <img id="image-preview" src="https://placehold.co/600x400/e2e8f0/94a3b8?text=Your+Image+Preview" alt="Image preview" class="w-full max-w-md rounded-lg object-cover bg-gray-100 hidden">
                     </div>
-
                 </div>
-                
+
                 <!-- Submit Button -->
-                <div class="mt-6 text-center">
-                    <button id="submit-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                <div class="mt-6 text-right">
+                    <button id="submit-btn" type="button" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400" disabled>
                         Get Recommendations
                     </button>
                 </div>
-            </div>
+            </section>
 
-            <!-- Loading and Results Section -->
-            <div>
-                <!-- Loading Indicator -->
-                <div id="loading-spinner" class="hidden flex-col items-center justify-center py-12">
-                    <div class="loader"></div>
-                    <p class="mt-4 text-lg text-gray-400">Finding patterns... this might take a moment.</p>
+            <!-- Loading Spinner -->
+            <section id="loading-spinner" class="mt-8 flex justify-center items-center p-12 bg-white rounded-lg shadow hidden">
+                <div class="flex flex-col items-center">
+                    <div class="spinner"></div>
+                    <p class="mt-4 text-gray-600">Finding patterns... this may take a moment.</p>
                 </div>
+            </section>
 
-                <!-- Error Message -->
-                <div id="error-message" class="hidden text-center py-12 bg-red-900 bg-opacity-30 text-red-300 rounded-lg p-4">
-                    <!-- Error content will be set here -->
-                </div>
+            <!-- Results Container (Holds BOTH XAI and Recommendations) -->
+            <div id="results-container" class="mt-8 hidden">
+                <!-- XAI Heatmap Section -->
+                <section id="xai-section" class="bg-white p-6 rounded-lg shadow hidden">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-2">
+                        Why These Results? (XAI Heatmap)
+                    </h2>
+                    <p class="text-sm text-gray-600 mb-4">
+                        This heatmap shows which parts of your uploaded image the AI model focused on to make its decision.
+                    </p>
+                    <div class="flex justify-center">
+                        <img id="xai-image" src="" alt="XAI Heatmap" class="max-w-full sm:max-w-lg rounded-lg shadow-md bg-gray-100">
+                    </div>
+                </section>
 
-                <!-- Results Grid -->
-                <div id="results-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                    <!-- Recommendation cards will be injected here -->
-                </div>
+
+                <!-- Recommendations Section -->
+                <section id="recommendations-section" class="mt-8 bg-white p-6 rounded-lg shadow">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">
+                        2. Your Top Recommendations
+                    </h2>
+                    <!-- Results Grid -->
+                    <div id="results-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        <!-- Recommendation cards will be injected here by JavaScript -->
+                    </div>
+                </section>
+
             </div>
 
         </main>
+
+        <!-- Footer -->
+        <footer class="bg-gray-100 border-t border-gray-200 mt-12">
+            <div class="max-w-4xl mx-auto py-4 px-4 text-center text-sm text-gray-500">
+                Sweater Recommender Project
+            </div>
+        </footer>
     </div>
 
-    <!-- JavaScript Logic -->
     <script>
         // Get all the DOM elements we need
-        const fileUpload = document.getElementById('file-upload');
-        const fileWrapper = document.getElementById('file-wrapper');
-        const fileLabel = document.getElementById('file-label');
-        
-        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const fileInput = document.getElementById('file-input');
         const imagePreview = document.getElementById('image-preview');
-        const fileNameElement = document.getElementById('file-name');
-        
-        const submitButton = document.getElementById('submit-button');
+        const submitBtn = document.getElementById('submit-btn');
         const loadingSpinner = document.getElementById('loading-spinner');
+        
+        // Main container for all results
+        const resultsContainer = document.getElementById('results-container');
+        
+        // --- NEW --- Get the XAI elements
+        const xaiSection = document.getElementById('xai-section');
+        const xaiImage = document.getElementById('xai-image');
+
+        // Recommendations grid
         const resultsGrid = document.getElementById('results-grid');
-        const errorMessageElement = document.getElementById('error-message');
 
-        let selectedFile = null;
-
-        // --- 1. Handle File Selection & Preview ---
-        
-        // Function to update the preview
-        function showPreview(file) {
-            selectedFile = file;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                imagePreview.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-
-            fileNameElement.textContent = file.name;
-            imagePreviewContainer.classList.remove('hidden');
-            fileWrapper.classList.add('hidden'); // Hide the file input
-            submitButton.disabled = false;
-        }
-
-        // Listener for file input click
-        fileUpload.addEventListener('change', (e) => {
-            const file = e.target.files[0];
+        // --- 1. Handle File Input Change ---
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files[0];
             if (file) {
-                showPreview(file);
+                // Create a URL for the file to use as a preview
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                    imagePreview.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+
+                // Enable the submit button
+                submitBtn.disabled = false;
+                
+                // --- NEW --- Hide old results when a new file is chosen
+                resultsContainer.classList.add('hidden');
+                xaiSection.classList.add('hidden');
+                resultsGrid.innerHTML = '';
+            } else {
+                // No file, reset
+                imagePreview.classList.add('hidden');
+                submitBtn.disabled = true;
             }
         });
 
-        // Add drag-and-drop support
-        fileWrapper.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            fileWrapper.classList.add('dragging');
-        });
-        fileWrapper.addEventListener('dragleave', () => {
-            fileWrapper.classList.remove('dragging');
-        });
-        fileWrapper.addEventListener('drop', (e) => {
-            e.preventDefault();
-            fileWrapper.classList.remove('dragging');
-            const file = e.dataTransfer.files[0];
-            if (file) {
-                fileUpload.files = e.dataTransfer.files; // Set the file input's files
-                showPreview(file);
-            }
-        });
-        
         // --- 2. Handle Form Submission ---
-
-        submitButton.addEventListener('click', handleSubmit);
+        submitBtn.addEventListener('click', handleSubmit);
 
         async function handleSubmit() {
-            if (!selectedFile) {
-                alert('Please select a file first.');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert("Please select a file first.");
                 return;
             }
 
-            // A. Set up the UI for loading
-            loadingSpinner.classList.remove('hidden');
-            loadingSpinner.classList.add('flex'); // Make it visible and centered
-            errorMessageElement.classList.add('hidden');
-            resultsGrid.innerHTML = ''; // Clear previous results
-            submitButton.disabled = true;
-
-            // B. Create FormData
+            // Create FormData to send the file
             const formData = new FormData();
-            formData.append('file', selectedFile);
+            formData.append('file', file);
 
-            // C. Make the API call
+            // Set UI to loading state
+            submitBtn.disabled = true;
+            loadingSpinner.classList.remove('hidden');
+            resultsContainer.classList.add('hidden');
+            xaiSection.classList.add('hidden'); // --- NEW --- Hide XAI section
+            resultsGrid.innerHTML = ''; // Clear old results
+
             try {
-                // IMPORTANT: Update this URL if your backend runs on a different port
+                // Call your FastAPI backend
                 const response = await fetch('http://127.0.0.1:8000/recommend', {
                     method: 'POST',
                     body: formData,
                 });
 
                 if (!response.ok) {
-                    // Handle server errors
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || `Server error: ${response.status}`);
+                    const error = await response.json();
+                    throw new Error(error.detail || `HTTP error! status: ${response.status}`);
                 }
 
-                // D. Process the successful response
                 const data = await response.json();
-                displayResults(data.recommendations);
+                
+                // --- DEBUGGING: Log the entire response ---
+                console.log("Received data from backend:", data);
+
+                // --- NEW --- Handle the XAI Heatmap
+                if (data.xai_heatmap_base64) {
+                    // Set the image source to the Base64 string
+                    xaiImage.src = `data:image/jpeg;base64,${data.xai_heatmap_base64}`;
+                    // Show the XAI section
+                    xaiSection.classList.remove('hidden');
+                } else {
+                    // --- DEBUGGING: Tell us if the heatmap is missing ---
+                    console.log("No XAI heatmap was returned from the backend (data.xai_heatmap_base64 is null or empty).");
+                    xaiSection.classList.add('hidden');
+                }
+
+                // Handle the Recommendations
+                if (data.recommendations && data.recommendations.length > 0) {
+                    let html = '';
+                    data.recommendations.forEach(item => {
+                        // Use a placeholder if thumbnail is missing
+                        const imgSrc = item.thumbnail || `https://placehold.co/300x300/e2e8f0/94a3b8?text=${encodeURIComponent(item.name || 'Pattern')}`;
+                        
+                        html += `
+                            <a href="${item.url || '#'}" target="_blank" rel="noopener noreferrer" class="block group rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300">
+                                <img src="${imgSrc}" alt="Pattern ${item.name}" class="w-full h-48 object-cover">
+                                <div class="p-3">
+                                    <p class="text-sm font-medium text-gray-900 truncate group-hover:text-indigo-600">${item.name || 'Untitled Pattern'}</p>
+                                    <p class="text-xs text-gray-500">Similarity: ${(1 - item.distance_score).toFixed(2)}</p>
+                                </div>
+                            </a>
+                        `;
+                    });
+                    resultsGrid.innerHTML = html;
+                } else {
+                    resultsGrid.innerHTML = '<p class="text-gray-500 col-span-full">No recommendations found.</p>';
+                }
+
+                // Show the main results container (which holds both XAI and grid)
+                resultsContainer.classList.remove('hidden');
 
             } catch (error) {
-                console.error('Error submitting form:', error);
-                displayError(`Failed to get recommendations. ${error.message}`);
+                console.error('Error during fetch:', error);
+                resultsGrid.innerHTML = `<p class="text-red-500 col-span-full">An error occurred: ${error.message}. Check the console and server logs.</p>`;
+                resultsContainer.classList.remove('hidden'); // Show container to display error
+                xaiSection.classList.add('hidden'); // --- NEW --- Hide XAI on error
             } finally {
-                // E. Clean up the UI
+                // Always re-enable button and hide spinner
+                submitBtn.disabled = false;
                 loadingSpinner.classList.add('hidden');
-                loadingSpinner.classList.remove('flex');
-                submitButton.disabled = false;
             }
         }
-
-        // --- 3. Display Results ---
-
-        function displayResults(recommendations) {
-            if (!recommendations || recommendations.length === 0) {
-                displayError('No recommendations found for this image.');
-                return;
-            }
-
-            resultsGrid.innerHTML = ''; // Clear again just in case
-
-            recommendations.forEach(item => {
-                // Use a placeholder if no thumbnail is available
-                const imageUrl = item.thumbnail || 'https://placehold.co/300x300/374151/9ca3af?text=No+Image';
-
-                // Calculate similarity score
-                // Cosine distance is 0 for identical, 1 for different.
-                // Similarity = 1 - distance
-                const similarity = (1 - item.distance_score) * 100;
-
-                const card = `
-                    <div class="bg-gray-800 rounded-lg shadow-lg overflow-hidden transition-all duration-300 transform hover:scale-105">
-                        <a href="${item.url || '#'}" target="_blank" rel="noopener noreferrer">
-                            <img src="${imageUrl}" alt="${item.name || 'Pattern'}" class="w-full h-48 object-cover" onerror="this.src='https://placehold.co/300x300/374151/9ca3af?text=No+Image'">
-                            <div class="p-4">
-                                <h3 class="font-semibold text-white truncate" title="${item.name || 'Unknown Pattern'}">
-                                    ${item.name || 'Unknown Pattern'}
-                                </h3>
-                                <p class="text-sm text-gray-400">Pattern ID: ${item.pattern_id}</p>
-                                <p class="text-sm text-blue-400 font-medium mt-1">
-                                    ${similarity.toFixed(1)}% Match
-                                </p>
-                            </div>
-                        </a>
-                    </div>
-                `;
-                resultsGrid.innerHTML += card;
-            });
-        }
-
-        // --- 4. Display Error ---
-
-        function displayError(message) {
-            errorMessageElement.textContent = message;
-            errorMessageElement.classList.remove('hidden');
-        }
-
     </script>
-
 </body>
 </html>

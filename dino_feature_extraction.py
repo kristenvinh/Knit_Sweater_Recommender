@@ -3,7 +3,6 @@
 import numpy as np
 from PIL import Image
 import torch
-# --- CHANGED: Import generic AutoModel and AutoImageProcessor ---
 from transformers import AutoModel, AutoImageProcessor
 from numpy.linalg import norm
 import os
@@ -15,6 +14,9 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 MODEL_ID = "facebook/dinov2-base"
 
 print(f"Initializing DINOv2 model ({MODEL_ID}) on {DEVICE}...")
+model = None
+processor = None
+FEATURE_DIM = 768  # Default value
 
 try:
     # Set cache directory to a common location
@@ -44,6 +46,7 @@ def extract_features(img_path):
         try: 
             # 1. Load and crop the image using YOLO
             image = extract_and_crop_image(img_path)
+            image_pil = Image.fromarray(image)
 
         except Exception as e:
             # Catch the specific error the user is seeing, plus any others
@@ -54,7 +57,7 @@ def extract_features(img_path):
         
 
         # 2. Process the image
-        inputs = processor(images=image, return_tensors="pt").to(DEVICE)
+        inputs = processor(images=image_pil, return_tensors="pt").to(DEVICE)
         
         # 3. Run the model
         with torch.no_grad():
