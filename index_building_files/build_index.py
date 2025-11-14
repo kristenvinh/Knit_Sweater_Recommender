@@ -15,12 +15,9 @@ slack_token = os.environ.get("SLACK_BOT_TOKEN")
 client = WebClient(token=slack_token) if slack_token else None
 
 feature_dim = 768
-data_directory = '/Volumes/Extreme Pro/ANN_photos' # IMPORTANT: Update this path to your data directory
+data_directory = '/Volumes/Extreme Pro/ANN_photos' 
 
-# --- Define filenames for the final, averaged features ---
-# master_features_file = 'master_features.npy'
-# pattern_ids_file = 'pattern_ids.pkl'
-
+# --- File Names ---
 master_features_file = 'master_features_DINO_yolo_pose.npy'
 pattern_ids_file = 'pattern_ids_DINO_yolo_pose.pkl'
 # ---
@@ -29,7 +26,7 @@ pattern_ids_file = 'pattern_ids_DINO_yolo_pose.pkl'
 if __name__ == "__main__":
     script_start_time = time.perf_counter()
     try:
-        # --- Step 1: Load or Build Master Feature Vectors ---
+        # Build Vectors
         if os.path.exists(master_features_file) and os.path.exists(pattern_ids_file):
             print("Loading existing master features and pattern IDs...")
             feature_list = np.load(master_features_file)
@@ -45,15 +42,12 @@ if __name__ == "__main__":
         print(f"\nLoaded {num_elements} feature vectors.")
         print(f"Feature vector dimension: {feature_list.shape[1]}")
 
-        # --- Step 2: Build the HNSWlib Index ---
+        # Build Index
         print("\n--- Building HNSWlib Index ---")
         
-        # We use cosine space because our feature vectors are normalized
         index = hnswlib.Index(space='cosine', dim=feature_dim)
         
-        # Initialize the index. max_elements is the maximum number of elements it can hold.
-        # ef_construction controls the trade-off between build time and accuracy.
-        # M defines the maximum number of outgoing connections in the graph.
+        # Initialize the index
         index.init_index(max_elements=num_elements, ef_construction=200, M=16)
         
         print(f"Adding {num_elements} vectors to the index...")
