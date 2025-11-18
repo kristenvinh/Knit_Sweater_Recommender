@@ -94,9 +94,9 @@
                     <p class="text-sm text-gray-600 mb-4">
                         The code for this project first attempts to crop your image to the person's torso to obtain a picture of just the sweater, and then removes the background using YOLO from <a href="https://docs.ultralytics.com/">Ultralytics</a>; however, this is not always successful.</p> 
 
-<p>It then extracts features using a DinoV2 advanced computer vision model from <a href="https://dinov2.metademolab.com/">Meta AI</a>. Below, you can see a visual representation of the crop, background removal, and feature extraction, with the red areas indicating the features the model focused on.</p>
+<p class="text-sm text-gray-600 mb-4">It then extracts features using a DinoV2 advanced computer vision model from <a href="https://dinov2.metademolab.com/">Meta AI</a>. Below, you can see a visual representation of the crop, background removal, and feature extraction, with the red areas indicating the features the model focused on.</p>
 
-<p>If the crop failed and/or the red areas are focused on irrelevant features (such as hair, pants, or the person's pose), and the recommendations below are poor, consider uploading a new image.</p>
+<p class="text-sm text-gray-600 mb-4">If the crop failed and/or the red areas are focused on irrelevant features (such as hair, pants, or the person's pose), and the recommendations below are poor, consider uploading a new image.</p>
 
                     </p>
                     <div class="flex justify-center">
@@ -110,9 +110,9 @@
                     <h2 class="text-lg font-semibold text-gray-900 mb-4">
                         Top Ten Recommendations
                     </h2>
-                    <p>Below are the top 10 recommendations that best match your sweater upload, drawn from approximately 10,000 of the top adult knitwear patterns on Ravelry using an <a href="https://github.com/nmslib/hnswlib">HNSWlib Approximate Nearest Neighbors Index</a>.</p>
+                    <p class="text-sm text-gray-600 mb-4">Below are the top 10 recommendations that best match your sweater upload, drawn from approximately 10,000 of the top adult knitwear patterns on Ravelry using an <a href="https://github.com/nmslib/hnswlib">HNSWlib Approximate Nearest Neighbors Index</a>.</p>
 
-<p>Click through on any given recommendation to view the pattern on <a href ="https://www.ravelry.com/">Ravelry</a>. 
+<p class="text-sm text-gray-600 mb-4">Click through on any given recommendation to view the pattern on <a href ="https://www.ravelry.com/">Ravelry</a>. 
 </p>
                     <!-- Results Grid -->
                     <div id="results-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
