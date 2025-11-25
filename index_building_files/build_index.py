@@ -5,15 +5,10 @@ import numpy as np
 import hnswlib
 import time
 from dotenv import load_dotenv
-from slack_sdk import WebClient
 from build_master_vectors import build_master_vectors
 
 # --- Setup ---
 load_dotenv()
-# Initialize Slack client if you have a token set up
-slack_token = os.environ.get("SLACK_BOT_TOKEN")
-client = WebClient(token=slack_token) if slack_token else None
-
 feature_dim = 768
 data_directory = '/Volumes/Extreme Pro/ANN_photos' 
 
@@ -65,18 +60,10 @@ if __name__ == "__main__":
         index.save_index(index_name)
         print(f"Index saved to {index_name}")
 
-        message = f"✅ HNSWlib DINO YOLO pose built in {build_duration:.2f} seconds and saved as {index_name}."
-        if client:
-             client.chat_postMessage(channel="python_updates", text=message, username="Bot User")
-
     except Exception as e:
         print(f"A critical error occurred: {e}")
         error_summary = f"🔥 Critical Failure in HNSWlib Script: `{e}`"
-        if client:
-            client.chat_postMessage(channel="python_updates", text=error_summary, username="Bot User")
     finally:
         script_duration = time.perf_counter() - script_start_time
         print(f"\nScript finished in {script_duration:.2f} seconds.")
-        message = f"\nScript DINO finished in {script_duration:.2f} seconds."
-        if client:
-             client.chat_postMessage(channel="python_updates", text=message, username="Bot User")
+        

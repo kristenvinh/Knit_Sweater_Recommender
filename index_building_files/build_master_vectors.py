@@ -6,21 +6,15 @@ import numpy as np
 from annoy import AnnoyIndex
 import time
 from dotenv import load_dotenv
-from slack_sdk import WebClient
 from dino_feature_extraction import extract_features
 
 load_dotenv()
-# Initialize Slack client if you have a token set up
-slack_token = os.environ.get("SLACK_BOT_TOKEN")
-client = WebClient(token=slack_token) if slack_token else None
+
 
 feature_dim = 768
 data_directory = '/Volumes/Extreme Pro/ANN_photos' # IMPORTANT: Update this path to your data directory
 
 # --- Define filenames for the final, averaged features ---
-# master_features_file = 'master_features.npy'
-# pattern_ids_file = 'pattern_ids.pkl'
-
 master_features_file = 'master_features_DINO_yolo_pose.npy'
 pattern_ids_file = 'pattern_ids_DINO_yolo_pose.pkl'
 # ---
