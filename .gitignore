@@ -1,1 +1,9 @@
 .env
+xai.py
+Capstone Files/
+__pycache__/
+example_photos/
+index_building_files/
+venv/
+*.pyc
+.DS_Store
