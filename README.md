@@ -30,27 +30,36 @@ This application bridges the gap between seeing a sweater you like and finding a
 - Object Detection: YOLOv8 (Ultralytics)
 - Feature Extraction: DinoV2 from MetaAI
 - Vector Search: HNSWlib
-- Explainability: GradCAM
+- Explainable AI: GradCAM
 
 ## Installation
 
-Clone the repository: bash git clone https://github.com/KristenVinh/knit_sweater_recommender.git
-
+Clone the repository:
+```
+bash git clone https://github.com/KristenVinh/knit_sweater_recommender.git
 cd sweater-recommender
-
-Install dependencies: Bash pip install -r requirements.txt
-
+```
+Install dependencies: 
+```
+bash pip install -r requirements.txt
+```
 Environment Setup: Create a .env file in the root directory to store your Ravelry API credentials
 
+```
 RAVELRY_USERNAME=your_username
 RAVELRY_PASSWORD=your_password
+```
 
 ## Usage
-1. Start the FastAPI server: Bashuvicorn main:app --reload
+1. Start the FastAPI server:
+
+```
+Bashuvicorn main:app --reload
+```
 2. Open your browser and navigate to http://127.0.0.1:8000 to use the interface.
 
 ## Acknowledgments & References
 
 - The indexing strategies were modeled after code used in [(https://github.com/sonu275981/Fashion-Recommender-system/)](https://github.com/sonu275981/Fashion-Recommender-system/).
 - Development: Front-end architecture and API integration were developed with the assistance of Google's Gemini AI.
--Data Source: Pattern data and images provided via the Ravelry API.
+- Data Source: Pattern data and images provided via the Ravelry API.
