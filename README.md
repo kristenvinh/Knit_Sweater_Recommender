@@ -1,9 +1,6 @@
 # Knit_Sweater_Recommender
 
-A knitwear recommendation system that suggests Ravelry knitting patterns based on user-uploaded images. This project utilizes machine learning, Approximate Nearest Neighbor (ANN) algorithms, and Explainable AI (XAI) to match real-world sweaters to knitting patterns.
-
-## Overview
-This application bridges the gap between seeing a sweater you like and finding a pattern to knit it. By analyzing nearly 10,000 popular patterns from Ravelry, the system builds a searchable vector index. When a user uploads a photo, the system processes it using object detection and feature extraction to find the most visually similar patterns available in the Ravelry database.
+This project was created by Kristen Vinh in 2025 as part of her Rochester Institute of Technology MS in Data Science capstone course to develop an algorithm that could recommend knitting sweater patterns from a user-uploaded photo.
 
  ## Key Features
  
@@ -51,15 +48,17 @@ RAVELRY_PASSWORD=your_password
 ```
 
 ## Usage
-1. Start the FastAPI server:
+1. Run the App:
 
 ```
-Bashuvicorn main:app --reload
+python main.py
 ```
-2. Open your browser and navigate to http://127.0.0.1:8000 to use the interface.
+2. Open the index.html file in the "frontend" folder in your browser.
+
+3. Upload a photo (sample photos avaiable in the 'example_photos' folder).
 
 ## Acknowledgments & References
 
 - The indexing strategies were modeled after code used in [Fashion Recommender system](https://github.com/sonu275981/Fashion-Recommender-system/).
 - Development: Front-end architecture and API integration were developed with the assistance of Google's Gemini AI.
-- Data Source: Pattern data and images provided via the Ravelry API.
+- Data Source: Pattern data and images provided via the Ravelry API.s
