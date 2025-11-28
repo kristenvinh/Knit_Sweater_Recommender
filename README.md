@@ -40,7 +40,7 @@ Install dependencies:
 ```
 bash pip install -r requirements.txt
 ```
-Environment Setup: Create a .env file in the root directory to store your Ravelry API credentials
+Environment Setup: Create a .env file in the root directory to store your Ravelry API credentials (easily obtained in the "PRO" section of a Ravelry user's account). Further details about the Ravelry API can be found at https://www.ravelry.com/api [https://www.ravelry.com/api]. Only "read-only" access is needed for this app.
 
 ```
 RAVELRY_USERNAME=your_username
