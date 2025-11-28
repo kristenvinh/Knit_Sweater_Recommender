@@ -61,4 +61,4 @@ python main.py
 
 - The indexing strategies were modeled after code used in [Fashion Recommender system](https://github.com/sonu275981/Fashion-Recommender-system/).
 - Development: Front-end architecture and API integration were developed with the assistance of Google's Gemini AI.
-- Data Source: Pattern data and images provided via the Ravelry API.s
+- Data Source: Pattern data and images provided via the Ravelry API.
