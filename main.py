@@ -10,28 +10,9 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import base64
+from dino_feature_extraction import extract_features, FEATURE_DIM
+from xaiutil import generate_xai_heatmap_bytes
 
-#Code written with assistance from Gemini AI
-
-# --- Import Your Feature Extraction Code ---
-# This will load the DINOv2 and YOLO models as well.
-try:
-    from dino_feature_extraction import extract_features, FEATURE_DIM, model, processor
-except ImportError:
-    print("Error: Could not import 'dino_feature_extraction.py'.")
-    print("Please make sure it's in the same directory as main.py.")
-    exit()
-except RuntimeError as e:
-    print(f"Error during model loading in 'dino_feature_extraction.py': {e}")
-    print("This often happens if CUDA is not available or 'transformers' is not installed.")
-    exit()
-
-# --- Import Your XAI Utilities ---
-try:
-    from xaiutil import generate_xai_heatmap_bytes
-except ImportError:
-    print("Error: Could not import 'xaiutil.py'.")
-    exit()
 
 # --- Configuration & Constants ---
 INDEX_FILE = 'sweater_hnsw_DINO_yolo_pose.bin'
@@ -211,11 +192,9 @@ async def recommend_sweaters(file: UploadFile = File(...)):
         
         for i, index_label in enumerate(query_labels):
             pattern_id = pattern_list[index_label]
-            distance = float(query_distances[i])
             
             base_results.append({
-                "pattern_id": pattern_id,
-                "distance_score": distance,
+                "pattern_id": pattern_id
             })
             
             # Create an async task to fetch Reddit data in a separate thread
