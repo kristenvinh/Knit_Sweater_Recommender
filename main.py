@@ -10,7 +10,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import base64
-from dino_feature_extraction import extract_features, FEATURE_DIM
+from dino_feature_extraction import extract_features, FEATURE_DIM, model, processor
 from xaiutil import generate_xai_heatmap_bytes
 
 
