@@ -53,7 +53,7 @@ RAVELRY_PASSWORD=your_password
 ```
 python main.py
 ```
-2. Open the index.html file in the "frontend" folder in your browser.
+2. Open the index.html file in your browser.
 
 3. Upload a photo (sample photos avaiable in the 'example_photos' folder).
 
