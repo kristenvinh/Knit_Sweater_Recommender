@@ -13,30 +13,18 @@ from YOLO_pose_crop import extract_and_crop_image
 # Use CUDA (GPU) if available, otherwise CPU
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 MODEL_ID = "facebook/dinov2-base"
-
-print(f"Initializing DINOv2 model ({MODEL_ID}) on {DEVICE}...")
-
 try:
     # Set cache directory to a common location
     os.environ['HF_HOME'] = os.path.expanduser('~/.cache/huggingface')
     model = AutoModel.from_pretrained(MODEL_ID).to(DEVICE)
     processor = AutoImageProcessor.from_pretrained(MODEL_ID)
-    
-    print("DINOv2 model and processor initialized successfully.")
-
     FEATURE_DIM = model.config.hidden_size
-    print(f"Feature dimension is: {FEATURE_DIM}") 
 
 except Exception as e:
-    print(f"Error initializing DINOv2 model: {e}")
-    print("Please ensure you have run 'pip install transformers torch pillow'")
     model = None
     processor = None
 
 def extract_features(img_path):
-    """
-    Extracts features from an image using the globally defined DINOv2 model.
-    """
     if model is None or processor is None:
         return (img_path, Exception("DINOv2 models are not initialized."))
         
@@ -46,11 +34,7 @@ def extract_features(img_path):
             image = extract_and_crop_image(img_path)
 
         except Exception as e:
-            # Catch the specific error the user is seeing, plus any others
-            if 'NoneType' in str(e):
-                 print(f"Error during YOLO cropping (likely int(None)): {e}. Will fall back to full image.")
-            else:
-                print(f"Error during YOLO cropping: {e}. Will fall back to full image.")
+            print(f"Error during YOLO cropping: {e}. Will fall back to full image.")
         
 
         # 2. Process the image
@@ -69,5 +53,5 @@ def extract_features(img_path):
         return (img_path, normalized_vector)
         
     except Exception as e:
-        print(f"  -> Failed to extract DINOv2 features for {img_path}: {e}")
+        print(f"Failed to extract DINOv2 features for {img_path}: {e}")
         return (img_path, e)
