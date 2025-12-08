@@ -25,7 +25,7 @@ This project was created by Kristen Vinh in 2025 as part of her Rochester Instit
 - Web Framework: FastAPI
 - Machine Learning: PyTorch 
 - Object Detection: YOLOv8 (Ultralytics)
-- Feature Extraction: DinoV2 from MetaAI
+- Feature Extraction: DinoV2 (MetaAI)
 - Vector Search: HNSWlib
 - Explainable AI: GradCAM
 
@@ -34,7 +34,7 @@ This project was created by Kristen Vinh in 2025 as part of her Rochester Instit
 Clone the repository:
 ```
 bash git clone https://github.com/KristenVinh/knit_sweater_recommender.git
-cd sweater-recommender
+cd knit_sweater_recommender
 ```
 Install dependencies: 
 ```
@@ -59,6 +59,6 @@ python main.py
 
 ## Acknowledgments & References
 
-- The indexing strategies were modeled after code used in [Fashion Recommender system](https://github.com/sonu275981/Fashion-Recommender-system/).
-- Development: Front-end architecture and API integration were developed with the assistance of Google's Gemini AI.
+- The indexing strategies were modeled after code used in [Fashion Recommender system](https://github.com/sonu275981/Fashion-Recommender-system/), the code from the paper [Personalized fashion recommender system with image based neural networks](https://iopscience.iop.org/article/10.1088/1757-899X/981/2/022073), although the code is not currently accessible on Github as of 12.8.25.
+- Development: Front-end architecture, XAI scripts, and API integration were developed with Google's Gemini AI. Gemini AI also helped in developing and debugging other sections of code as well. 
 - Data Source: Pattern data and images provided via the Ravelry API.
