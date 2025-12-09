@@ -18,7 +18,8 @@ This project was created by Kristen Vinh in 2025 as part of her Rochester Instit
  
  Includes Grad-CAM (Gradient-weighted Class Activation Mapping) visualizations to show users exactly which features (texture, neckline, color) the model focused on.
  
- ### Interactive UI: A lightweight front-end built with FastAPI.
+ ### Interactive UI: 
+ A lightweight front-end built with FastAPI.
  
 ## Built With:
 
