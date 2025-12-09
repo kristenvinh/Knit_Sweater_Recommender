@@ -148,7 +148,7 @@ def extract_and_crop_image(image_path):
                     print(f"  -> Smart crop (Pose) for {image_path}") 
             
             if crop_box is None:
-                print(f"  -> Pose failed. Fallback crop (Mask) for {image_path}")
+                print(f"  -> Pose failed. Fallback crop (Segment) for {image_path}")
                 crop_box = _get_mask_crop(best_mask_resized)
             
             if crop_box:

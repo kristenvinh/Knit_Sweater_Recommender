@@ -60,5 +60,5 @@ python main.py
 ## Acknowledgments & References
 
 - The indexing strategies were modeled after code used in [Fashion Recommender system](https://github.com/sonu275981/Fashion-Recommender-system/), the code from the paper [Personalized fashion recommender system with image based neural networks](https://iopscience.iop.org/article/10.1088/1757-899X/981/2/022073), although the code is not currently accessible on Github as of 12.8.25.
-- Development: Front-end architecture, XAI scripts, and API integration were developed with Google's Gemini AI. Gemini AI also helped in developing and debugging other sections of code as well. 
+- Development: Front-end architecture, XAI scripts, and the final API integration were developed with Google's Gemini AI. Gemini AI also helped in developing and debugging other sections of code as well. 
 - Data Source: Pattern data and images provided via the Ravelry API.
