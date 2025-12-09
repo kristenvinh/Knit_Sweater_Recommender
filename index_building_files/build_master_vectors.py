@@ -15,7 +15,6 @@ pattern_ids_file = 'pattern_ids_DINO_yolo_pose.pkl'
 
 def build_master_vectors():
     master_vectors = {}
-    # Ensure the root data directory exists
     if not os.path.isdir(data_directory):
         return None, None
 

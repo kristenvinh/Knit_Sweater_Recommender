@@ -1,6 +1,6 @@
 #This script is the adjusted XAI script for the web app,
-#with improved error handling and image resizing, re-written primarily from XAI.py by 
-# Gemini AI with human review and modifications.
+#with improved error handling and image resizing, re-written primarily from XAI.py with 
+# Gemini AI assistance.
 import torch
 import cv2
 import numpy as np

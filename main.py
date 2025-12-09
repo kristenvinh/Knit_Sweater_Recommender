@@ -1,5 +1,5 @@
-#This script runs the main FastAPI server for sweater recommendations, written primarily by 
-# Gemini AI with human review and modifications.
+#This script runs the main FastAPI server for sweater recommendations, written with 
+# Gemini AI assistance.
 import os
 import pickle
 import shutil
