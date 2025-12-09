@@ -4,13 +4,11 @@ import pickle
 import numpy as np
 import hnswlib
 import time
-from dotenv import load_dotenv
 from build_master_vectors import build_master_vectors
 
 # --- Setup ---
-load_dotenv()
-feature_dim = 768
-data_directory = 'data/directory/here'  # Example directory path
+feature_dim = 768 #Feature dimension for DINO features
+data_directory = 'data/directory/here'  # Example directory path, images should be in pattern subfolders
 
 # --- File Names ---
 master_features_file = 'master_features_DINO_yolo_pose.npy'

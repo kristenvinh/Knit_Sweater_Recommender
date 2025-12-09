@@ -1,15 +1,11 @@
 # --- Setup ---
-# %%
 import os
 import pickle
 import numpy as np
-from dotenv import load_dotenv
 from dino_feature_extraction import extract_features
 
-load_dotenv()
 
-
-feature_dim = 768
+feature_dim = 768 # Feature dimension for DINO features
 data_directory = 'EXAMPLE_PATH' # Example directory path, files should be in pattern subfolders
 
 # --- Define filenames for the final, averaged features ---

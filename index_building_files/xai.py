@@ -1,30 +1,19 @@
-import hnswlib
-import pickle
-import numpy as np
-from PIL import Image
-import matplotlib.pyplot as plt
-import os
+# DINOv2 Grad-CAM Visualization Script
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 import os
 import cv2
 import torch
-from PIL import Image
-import matplotlib.pyplot as plt
-import os
-import cv2  # Used for visualization
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
-from pytorch_grad_cam.utils.image import show_cam_on_image
-from dino_feature_extraction import extract_features
 from transformers import AutoModel, AutoImageProcessor
 from YOLO_pose_crop import extract_and_crop_image
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 MODEL_ID = "facebook/dinov2-base"  # DINOv2 Model
 
-# --- Import your YOLO cropper ---
+# Import YOLO cropping function with error handling
 try:
     from YOLO_pose_crop import extract_and_crop_image
     YOLO_AVAILABLE = True
@@ -35,11 +24,6 @@ except Exception as e:
     print(f"Error importing YOLO_crop: {e}. Will fall back to resizing full images.")
     YOLO_AVAILABLE = False
 
-from PIL import Image  # <-- Make sure this is at the top of your file
-import numpy as np     # <-- Make sure this is imported
-
-# (Your other imports and YOLO_pose_crop functions...)
-
 def preprocess_image_for_dino(img_path, processor):
     """
     Loads, YOLO-crops, and preprocesses an image for DINOv2.
@@ -48,25 +32,14 @@ def preprocess_image_for_dino(img_path, processor):
     img_pil = None  # Initialize as None
     
     if YOLO_AVAILABLE:
-        # try:
-            # This function returns a NumPy array (or None if it fails badly)
             img_numpy_array = extract_and_crop_image(img_path) 
-            
-            # --- START FIX ---
-            # Convert the NumPy array to a PIL Image
             if img_numpy_array is not None:
                 img_pil = Image.fromarray(img_numpy_array)
             else:
-                img_pil = None # It failed, so keep it None
-            # --- END FIX ---
-
-            # Now this check will work, because img_pil is a proper PIL Image
+                img_pil = None 
             if img_pil is not None and (img_pil.width == 0 or img_pil.height == 0):
                 print(f"Warning: YOLO returned a zero-size image for {img_path}. Falling back.")
                 img_pil = None
-
-        # except Exception as e:
-        #     ... (your exception block) ...
     
     if img_pil is None:
         if YOLO_AVAILABLE:
@@ -77,9 +50,6 @@ def preprocess_image_for_dino(img_path, processor):
             print(f"Error opening image {img_path}: {e}")
             return None, None
     
-    # ... (Rest of your function is fine) ...
-    
-    # 1. Process for the model
     try:
         inputs = processor(images=img_pil, return_tensors="pt").to(DEVICE)
         input_tensor = inputs['pixel_values']
@@ -87,7 +57,6 @@ def preprocess_image_for_dino(img_path, processor):
         print(f"Error during Hugging Face processing step for {img_path}: {e}")
         return None, None 
     
-    # 2. Create the plotting image
     plot_size = processor.crop_size.get('height', 224)
     if plot_size is None:
         print(f"Error: Processor config missing 'crop_size'. Defaulting to 224.")
@@ -99,7 +68,7 @@ def preprocess_image_for_dino(img_path, processor):
     return input_tensor, plot_img_array
 
 
-# Custom target class for a specific feature index (IDENTICAL to CLIP version)
+# Custom target class for a specific feature index
 class FeatureTarget(ClassifierOutputTarget):
     def __init__(self, feature_index):
         super().__init__(feature_index)
@@ -173,7 +142,7 @@ def get_XAI_for_dino(TEST_IMAGE_PATH):
     
     # Target layer for DINOv2 is the final layer norm
 
-    target_layers = [model.encoder.layer[-1].norm1]    # --- End FIX ---
+    target_layers = [model.encoder.layer[-1].norm1]   
 
     cam = GradCAM(model=feature_extractor_model, 
                   target_layers=target_layers, 
@@ -203,7 +172,7 @@ def get_XAI_for_dino(TEST_IMAGE_PATH):
 
     cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     cbar.set_label('Feature Activation Intensity')
-    # --- End ADD COLOR BAR ---
+   
     plt.tight_layout()
     output_path = os.path.splitext(TEST_IMAGE_PATH)[0] + "_dino_gradcam.png"
     plt.savefig(output_path)

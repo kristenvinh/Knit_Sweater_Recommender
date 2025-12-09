@@ -1,8 +1,6 @@
 import numpy as np
-import cv2  # Added for image loading and cropping
-import os
-import matplotlib.pyplot as plt
-from ultralytics import YOLO  # Added for object detection
+import cv2 
+from ultralytics import YOLO  
 try:
     # Load YOLO models
     yolo_seg_model = YOLO('yolov8n-seg.pt')    

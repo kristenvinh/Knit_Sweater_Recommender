@@ -1,9 +1,5 @@
 # dino_feature_extraction.py
-
-import numpy as np
-from PIL import Image
 import torch
-# --- CHANGED: Import generic AutoModel and AutoImageProcessor ---
 from transformers import AutoModel, AutoImageProcessor
 from numpy.linalg import norm
 import os
@@ -14,7 +10,7 @@ from YOLO_pose_crop import extract_and_crop_image
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 MODEL_ID = "facebook/dinov2-base"
 try:
-    # Set cache directory to a common location
+    # Set cache directory for Hugging Face models
     os.environ['HF_HOME'] = os.path.expanduser('~/.cache/huggingface')
     model = AutoModel.from_pretrained(MODEL_ID).to(DEVICE)
     processor = AutoImageProcessor.from_pretrained(MODEL_ID)
