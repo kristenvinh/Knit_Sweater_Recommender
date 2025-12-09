@@ -6,7 +6,7 @@ from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam.utils.image import show_cam_on_image
 
-# --- Import your YOLO cropper ---
+# Import Yolo
 try:
     from YOLO_pose_crop import extract_and_crop_image
     YOLO_AVAILABLE = True
@@ -28,7 +28,7 @@ def _preprocess_for_xai(img_path, processor):
     
     if YOLO_AVAILABLE:
         try:
-            # This function returns a NumPy array (or None if it fails badly)
+            # This function returns a NumPy array (or None on failure)
             img_numpy_array = extract_and_crop_image(img_path) 
             
             if img_numpy_array is not None:
@@ -61,10 +61,6 @@ def _preprocess_for_xai(img_path, processor):
         return None, None 
     
     # 2. Create the plotting image
-    
-    # --- THIS IS THE FIX ---
-    # We must resize the plot image to match the processor's crop size (e.g., 224x224)
-    # This ensures the heatmap and the image have matching dimensions.
     
     # Get the target size from the processor's config
     # Use .get() for safety, defaulting to 224
@@ -114,7 +110,7 @@ def _reshape_transform_vit(tensor):
     return tensor
 
 
-# --- MAIN FUNCTION TO BE CALLED BY main.py ---
+# Function called by main.py ---
 
 def generate_xai_heatmap_bytes(image_path: str, model, processor):
     """
@@ -142,7 +138,6 @@ def generate_xai_heatmap_bytes(image_path: str, model, processor):
     print("XAI: Getting feature vector...")
     with torch.no_grad():
         outputs = model(pixel_values=input_tensor)
-        # We use the mean of patch tokens, matching dino_feature_extraction.py
         feature_vector = outputs.last_hidden_state.mean(dim=1)
     
     top_feature_index = torch.argmax(feature_vector[0]).item()
