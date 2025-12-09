@@ -9,6 +9,8 @@ from YOLO_pose_crop import extract_and_crop_image
 # Use CUDA (GPU) if available, otherwise CPU
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 MODEL_ID = "facebook/dinov2-base"
+
+# Load the DINOv2 model and processor
 try:
     # Set cache directory for Hugging Face models
     os.environ['HF_HOME'] = os.path.expanduser('~/.cache/huggingface')
@@ -20,6 +22,7 @@ except Exception as e:
     model = None
     processor = None
 
+# Function to extract DINOv2 features from an image
 def extract_features(img_path):
     if model is None or processor is None:
         return (img_path, Exception("DINOv2 models are not initialized."))

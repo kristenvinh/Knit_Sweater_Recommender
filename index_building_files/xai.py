@@ -1,4 +1,6 @@
-# DINOv2 Grad-CAM Visualization Script
+# DINOv2 Grad-CAM Visualization Script 
+# This script generates Grad-CAM visualizations for the top activated feature, written with
+# Gemini AI assistance.
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt

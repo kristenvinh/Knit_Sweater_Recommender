@@ -1,5 +1,5 @@
 import numpy as np
-import cv2  # Added for image loading and cropping
+import cv2 
 from ultralytics import YOLO  
 try:
     # Load YOLO models
@@ -15,12 +15,14 @@ import cv2
 import numpy as np
 
 KEYPOINT_CONF_THRESH = 0.5  # Confidence threshold for pose keypoints
-TORSO_KEYPOINTS = [5, 6, 11, 12] # COCO indices: l_shoulder, r_shoulder, l_hip, r_hip
+TORSO_KEYPOINTS = [5, 6, 11, 12] # Indices for torso crop: l_shoulder, r_shoulder, l_hip, r_hip
+
 
 
 def _get_keypoint_crop(keypoints, confidences, img_shape):
     h, w = img_shape
-        # Adjust these values as needed
+        # Adjust these values as needed -- smallest acceptable crop size, otherwise not enough 
+    #of the image/sweater is left. Helps prevent too tight crops.
     MIN_CROP_WIDTH = .25 * w  # 25% of image width
     MIN_CROP_HEIGHT = .25 * h  # 25% of image height
 
@@ -30,7 +32,7 @@ def _get_keypoint_crop(keypoints, confidences, img_shape):
         if confidences[kpt_index] > KEYPOINT_CONF_THRESH:
             torso_points_xy.append(keypoints[kpt_index])
             
-    # Need at least 2 valid points to define a box
+    # Require all four torso keypoints to ensure good crop, otherwise fallback to YOLO Segment.
     if len(torso_points_xy) < 4:
         return None # Signal failure
 
@@ -64,6 +66,7 @@ def _get_keypoint_crop(keypoints, confidences, img_shape):
     final_height = y2 - y1
     
     # Check if the final crop meets the minimum size requirements
+    # Again ensures there isn't too small a crop
     if final_height >= MIN_CROP_HEIGHT and final_width >= MIN_CROP_WIDTH:
         print(f"Final crop size: width={final_width}, height={final_height}")
         print(f"Original size: width={w}, height={h}")
@@ -72,7 +75,7 @@ def _get_keypoint_crop(keypoints, confidences, img_shape):
         # Return None if the crop is too small
         return None
     
-
+#YOLO Segment fallback crop
 def _get_mask_crop(best_mask_resized):
     y_indices, x_indices = np.where(best_mask_resized > 0)
     
@@ -81,6 +84,7 @@ def _get_mask_crop(best_mask_resized):
         y1, y2 = y_indices.min(), y_indices.max()
 
         h = y2 - y1
+        # Apply vertical cropping adjustments
         crop_y1_new = max(y1, y1 + int(h * 0.1)) 
         crop_y2_new = min(y2, y1 + int(h * 0.8))
         
@@ -89,6 +93,7 @@ def _get_mask_crop(best_mask_resized):
     
     return None
 
+#Full function to extract and crop image
 def extract_and_crop_image(image_path):
     image = cv2.imread(image_path)
     
@@ -98,7 +103,7 @@ def extract_and_crop_image(image_path):
         blank_image = np.zeros((100, 100, 3), dtype=np.uint8)
         return blank_image, blank_image 
 
-    cropped_bgr = image # Default fallback
+    cropped_bgr = image # Default fallback of full image
     img_height, img_width = image.shape[:2]
 
     # --- YOLO PROCESSING ---
@@ -159,6 +164,7 @@ def extract_and_crop_image(image_path):
                 cropped_bgr = masked_image
         
         # Check for excessive black pixels in the final cropped image
+        # Again, ensure the result is not mostly black and we have a sweater to see
         FINAL_BLACK_THRESHOLD = 0.95 
 
         # Only run this check if not already using the original image

@@ -19,7 +19,9 @@ pattern_ids_file = 'pattern_ids_DINO_yolo_pose.pkl'
 if __name__ == "__main__":
     script_start_time = time.perf_counter()
     try:
-        # Build Vectors
+        # Load vectors if already built, otherwise build vectors
+        # Included because building vectors is time consuming and can be used for different index types, 
+        # Such as ANNOY or FAISS
         if os.path.exists(master_features_file) and os.path.exists(pattern_ids_file):
             feature_list = np.load(master_features_file)
             with open(pattern_ids_file, 'rb') as f:
@@ -33,12 +35,12 @@ if __name__ == "__main__":
         num_elements = len(feature_list)
 
         # Build Index
-
         index = hnswlib.Index(space='cosine', dim=feature_dim)
         
         # Initialize the index
         index.init_index(max_elements=num_elements, ef_construction=200, M=16)
         
+        # Start timer so can track building index time
         build_start_time = time.perf_counter()
         
         # Add the vectors and their corresponding integer IDs
@@ -54,7 +56,6 @@ if __name__ == "__main__":
 
     except Exception as e:
         print(f"A critical error occurred: {e}")
-        error_summary = f"Failure in HNSWlib Script: `{e}`"
     finally:
         script_duration = time.perf_counter() - script_start_time
         print(f"\nScript finished in {script_duration:.2f} seconds.")

@@ -15,7 +15,6 @@ pattern_ids_file = 'pattern_ids_DINO_yolo_pose.pkl'
 
 def build_master_vectors():
     master_vectors = {}
-
     # Ensure the root data directory exists
     if not os.path.isdir(data_directory):
         return None, None
@@ -37,16 +36,19 @@ def build_master_vectors():
             if feature_vector is not None and isinstance(feature_vector, np.ndarray):
                 pattern_feature_list.append(feature_vector)
 
+        # Average features for the pattern if there are any valid features
         if pattern_feature_list:
             master_vectors[pattern_id] = np.mean(pattern_feature_list, axis=0)
 
     if not master_vectors:
         return None, None
-        
+
+    #Convert to numpy array and save    
     pattern_ids = list(master_vectors.keys())
     feature_list = np.array([master_vectors[pid] for pid in pattern_ids]).astype('float32')
 
     np.save(master_features_file, feature_list)
+    # Save pattern IDs to a pickle file
     with open(pattern_ids_file, 'wb') as f:
         pickle.dump(pattern_ids, f)
 
