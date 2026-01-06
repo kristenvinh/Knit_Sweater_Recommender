@@ -21,8 +21,8 @@ data_directory = '/Volumes/Extreme Pro/ANN_photos'  # IMPORTANT: Update this pat
 # master_features_file = 'master_features.npy'
 # pattern_ids_file = 'pattern_ids.pkl'
 
-master_features_file = 'master_features_yolo_seg.npy'
-pattern_ids_file = 'pattern_ids_yolo_seg.pkl'
+master_features_file = 'master_features.npy'
+pattern_ids_file = 'pattern_ids.pkl'
 # ---
 
 
@@ -67,11 +67,11 @@ if __name__ == "__main__":
         print(f"HNSWlib index built in {build_duration:.2f} seconds.")
 
         # --- Step 3: Save the Index ---
-        index_name = 'sweater_hnsw_ResNet50_Yolo.bin'
+        index_name = 'sweater_hnsw_ResNet50.bin'
         index.save_index(index_name)
         print(f"Index saved to {index_name}")
 
-        message = f"✅ HNSWlib ResNet50 YOLO Seg index built in {build_duration:.2f} seconds and saved as {index_name}."
+        message = f"✅ HNSWlib ResNet50 index built in {build_duration:.2f} seconds and saved as {index_name}."
         if client:
              client.chat_postMessage(channel="python_updates", text=message, username="Bot User")
 

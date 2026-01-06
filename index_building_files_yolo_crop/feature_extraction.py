@@ -8,7 +8,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.models import Sequential
 from numpy.linalg import norm
 import cv2
-from YOLO_crop import extract_and_crop_image
+from YOLO_pose_crop import extract_and_crop_image
 
 # Using a globally defined model to avoid reloading it for each function call
 # Initialize base model

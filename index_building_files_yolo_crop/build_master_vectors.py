@@ -17,8 +17,8 @@ feature_dim = 1024
 data_directory = '/Volumes/Extreme Pro/ANN_photos'  # IMPORTANT: Update this path to your data directory
 
 # --- Define filenames for the final, averaged features ---
-master_features_file = 'master_features_yolo_seg.npy'
-pattern_ids_file = 'pattern_ids_yolo_seg.pkl'
+master_features_file = 'master_features.npy'
+pattern_ids_file = 'pattern_ids.pkl'
 
 def build_master_vectors():
     """
