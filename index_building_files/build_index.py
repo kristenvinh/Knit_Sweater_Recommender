@@ -14,7 +14,7 @@ load_dotenv()
 slack_token = os.environ.get("SLACK_BOT_TOKEN")
 client = WebClient(token=slack_token) if slack_token else None
 
-feature_dim = 2048
+feature_dim = 1024
 data_directory = '/Volumes/Extreme Pro/ANN_photos'  # IMPORTANT: Update this path to your data directory
 
 # --- Define filenames for the final, averaged features ---

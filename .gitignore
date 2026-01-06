@@ -3,7 +3,10 @@ xai.py
 Capstone Files/
 __pycache__/
 example_photos/
-index_building_files/
 venv/
 *.pyc
 .DS_Store
+/index_building_files/Evaluation_Sweaters
+/index_building_files_individual/Evaluation_Sweaters
+index_building_files_individual/all_image_features.npy
+index_building_files_individual/sweater_hnsw_ResNet50_Individual.bin

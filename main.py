@@ -12,13 +12,13 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import base64
-from dino_feature_extraction import extract_features, FEATURE_DIM, model, processor
+from feature_extraction import extract_features, model, FEATURE_DIM
 from xaiutil import generate_xai_heatmap_bytes
 
 
 # --- Configuration & Constants ---
-INDEX_FILE = 'sweater_hnsw_DINO_yolo_pose.bin'
-PATTERN_IDS_FILE = 'pattern_ids_DINO_yolo_pose.pkl'
+INDEX_FILE = 'sweater_hnsw_ResNet50_Yolo.bin'
+PATTERN_IDS_FILE = 'pattern_ids_yolo_seg.pkl'
 
 # --- Global State (Loaded on Startup) ---
 app_state = {
@@ -51,12 +51,8 @@ async def load_models_on_startup():
     """
     print("--- Server starting up... ---")
 
-    # 1. Load DINOv2 & YOLO models
-    # This was already triggered by the import at the top of the file.
-    # We just print a confirmation.
-    print(f"✅ DINOv2/YOLO models loaded (from import). Feature dim: {FEATURE_DIM}")
 
-    # 2. Load HNSWlib Index
+    #Load HNSWlib Index
     if not os.path.exists(INDEX_FILE):
         raise FileNotFoundError(f"Index file not found: {INDEX_FILE}. Did you run build_index.py?")
     
@@ -219,21 +215,21 @@ async def recommend_sweaters(file: UploadFile = File(...)):
     
         print("Generating XAI heatmap...")
             # Run the CPU-heavy XAI task in a separate thread
-        heatmap_bytes = await asyncio.to_thread(
-                generate_xai_heatmap_bytes, 
-                temp_file_path, 
-                model, 
-                processor
-            )
+        # heatmap_bytes = await asyncio.to_thread(
+        #         generate_xai_heatmap_bytes, 
+        #         temp_file_path, 
+        #         model, 
+        #         processor
+        #     )
             
-        heatmap_base64 = None
-        if heatmap_bytes:
-            heatmap_base64 = base64.b64encode(heatmap_bytes).decode('utf-8')
-            print("Heatmap generated and encoded.")
+        # heatmap_base64 = None
+        # if heatmap_bytes:
+        #     heatmap_base64 = base64.b64encode(heatmap_bytes).decode('utf-8')
+        #     print("Heatmap generated and encoded.")
 
         return {
             "recommendations": final_recommendations,
-            "xai_heatmap_base64": heatmap_base64,
+            # "xai_heatmap_base64": heatmap_base64,
         }
     except Exception as e:
         # Catch any other errors
