@@ -1,198 +1,167 @@
-#This script is the adjusted XAI script for the web app,
-#with improved error handling and image resizing, re-written primarily from XAI.py with 
-# Gemini AI assistance.
-import torch
-import cv2
+# xaiutil.py
+import matplotlib
+# --- CRITICAL FIX: Force non-interactive backend ---
+# This prevents macOS from crashing when plotting in a background thread.
+matplotlib.use('Agg') 
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+
 import numpy as np
-from PIL import Image
-from pytorch_grad_cam import GradCAM
-from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
-from pytorch_grad_cam.utils.image import show_cam_on_image
+import cv2
+import tensorflow as tf
+from tensorflow.keras.preprocessing import image
+from tensorflow.keras.applications.resnet50 import preprocess_input
+from tf_keras_vis.utils.scores import CategoricalScore
+from tf_keras_vis.gradcam import Gradcam
+import io
 
-# Import Yolo
-try:
-    from YOLO_pose_crop import extract_and_crop_image
-    YOLO_AVAILABLE = True
-except ImportError:
-    print("Warning: 'YOLO_pose_crop.py' not found. Will fall back to full images.")
-    YOLO_AVAILABLE = False
-except Exception as e:
-    print(f"Error importing YOLO_pose_crop: {e}. Will fall back to full images.")
-    YOLO_AVAILABLE = False
+# --- 1. Dynamic YOLO Import ---
+YOLO_AVAILABLE = False
+extract_and_crop_image = None
+
+possible_yolo_modules = ['YOLO_crop', 'YOLO_pose_crop']
+
+for module_name in possible_yolo_modules:
+    try:
+        mod = __import__(module_name, fromlist=['extract_and_crop_image'])
+        extract_and_crop_image = mod.extract_and_crop_image
+        YOLO_AVAILABLE = True
+        print(f"XAI: Successfully imported YOLO from {module_name}")
+        break
+    except ImportError:
+        continue
+
+if not YOLO_AVAILABLE:
+    print("XAI Warning: YOLO crop module not found. Will fall back to full images.")
 
 
-def _preprocess_for_xai(img_path, processor):
+# --- 2. Helper Functions ---
+
+def find_last_conv_layer(model):
     """
-    Loads, YOLO-crops, and preprocesses an image for DINOv2 XAI.
-    Returns the processed tensor and the original image (as a uint8 array) 
-    for plotting.
+    Finds the *layer object* of the last convolutional layer in a Keras model.
     """
-    img_pil = None
+    for layer in reversed(model.layers):
+        if isinstance(layer, tf.keras.layers.Conv2D):
+            return layer
+            
+    raise ValueError(f"Could not find a Conv2D layer in model {model.name}.")
+
+def _preprocess_for_resnet(img_path):
+    """
+    Loads, crops (YOLO), and preprocesses an image for ResNet50 Keras.
+    """
+    img = None
     
+    # A. Try YOLO Crop
     if YOLO_AVAILABLE:
         try:
-            # This function returns a NumPy array (or None on failure)
-            img_numpy_array = extract_and_crop_image(img_path) 
+            img = extract_and_crop_image(img_path)
             
-            if img_numpy_array is not None:
-                img_pil = Image.fromarray(img_numpy_array)
-            else:
-                img_pil = None # It failed, so keep it None
-
-            if img_pil is not None and (img_pil.width == 0 or img_pil.height == 0):
-                print(f"Warning: YOLO returned a zero-size image for {img_path}. Falling back.")
-                img_pil = None
+            if img is not None:
+                img = cv2.resize(img, (224, 224))
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                
+            if img is not None and (img.shape[0] == 0 or img.shape[1] == 0):
+                img = None
         except Exception as e:
-            print(f"Warning: YOLO failed for {img_path} ({e}). Falling back.")
-            img_pil = None
-    
-    if img_pil is None:
-        if YOLO_AVAILABLE:
-            print(f"Info: Using full image for {img_path}.")
+            print(f"XAI Warning: YOLO failed for {img_path} ({e}). Falling back.")
+            img = None
+
+    # B. Fallback to Full Image (PIL)
+    if img is None:
         try:
-            img_pil = Image.open(img_path).convert("RGB")
+            pil_img = image.load_img(img_path, target_size=(224, 224))
+            img = image.img_to_array(pil_img).astype(np.uint8)
         except Exception as e:
-            print(f"Error opening image {img_path}: {e}")
+            print(f"XAI Error loading image {img_path}: {e}")
             return None, None
+
+    # C. Prepare for Model
+    img_expanded = np.expand_dims(img, axis=0)
+    input_tensor = preprocess_input(img_expanded.astype('float32'))
     
-    # 1. Process for the model
+    return input_tensor, img
+
+# --- 3. Main XAI Generator ---
+
+def generate_xai_heatmap_bytes(image_path, model, processor=None):
+    """
+    Generates a Grad-CAM heatmap for ResNet50 and returns it as JPEG bytes.
+    """
     try:
-        inputs = processor(images=img_pil, return_tensors="pt")
-        input_tensor = inputs['pixel_values']
-    except Exception as e:
-        print(f"Error during Hugging Face processing step for {img_path}: {e}")
-        return None, None 
-    
-    # 2. Create the plotting image
-    
-    # Get the target size from the processor's config
-    # Use .get() for safety, defaulting to 224
-    plot_size = processor.crop_size.get('height', 224) 
-    
-    # Resize the cropped PIL image to the exact input size of the model
-    plot_img_pil = img_pil.resize((plot_size, plot_size))
-    
-    # Convert this *resized* image to the float array for plotting
-    # show_cam_on_image expects a float array between 0 and 1
-    plot_img_array = np.array(plot_img_pil).astype(np.float32) / 255.0
-    # --- END OF FIX ---
-    
-    return input_tensor, plot_img_array
-
-
-# Custom target class for a specific feature index
-class FeatureTarget(ClassifierOutputTarget):
-    def __init__(self, feature_index):
-        super().__init__(feature_index)
-        self.feature_index = feature_index
-
-    def __call__(self, model_output):
-        # model_output is a 1D tensor (e.g., shape [768])
-        return model_output[self.feature_index]
-    
-
-# Reshape transform for Vision Transformers 
-def _reshape_transform_vit(tensor):
-    """
-    Reshapes the 3D ViT tensor to a 4D tensor for Grad-CAM.
-    Input shape: (batch_size, num_tokens, embedding_dim)
-    Output shape: (batch_size, embedding_dim, height, width)
-    """
-    if len(tensor.shape) == 3:
-        # Assumes token 0 is the [CLS] token
-        patch_tokens = tensor[:, 1:, :]
-        num_patches = patch_tokens.shape[1]
-        h = w = int(num_patches**0.5)
+        # 1. Preprocess
+        input_tensor, original_img_array = _preprocess_for_resnet(image_path)
         
-        # Reshape to (batch, H, W, C)
-        reshaped_tensor = patch_tokens.reshape(-1, h, w, tensor.shape[-1])
+        if input_tensor is None:
+            return None
+
+        # 2. Make Prediction
+        feature_vector = model.predict(input_tensor)
+        top_feature_index = np.argmax(feature_vector[0])
+        print(f"XAI: Visualizing feature index {top_feature_index}")
+
+        # --- KEY FIX: Extract Inner Functional Model ---
+        xai_model = model
+        manual_pooling_needed = False
         
-        # Permute to (batch, C, H, W) as expected by pytorch-grad-cam
-        reshaped_tensor = reshaped_tensor.permute(0, 3, 1, 2)
-        return reshaped_tensor
-    return tensor
-
-
-# Function called by main.py ---
-
-def generate_xai_heatmap_bytes(image_path: str, model, processor):
-    """
-    Generates a Grad-CAM heatmap for the DINOv2 model and returns it as JPEG bytes.
-    
-    Args:
-        image_path: Path to the user's uploaded image.
-        model: The globally loaded DINOv2 model.
-        processor: The globally loaded DINOv2 image processor.
+        if isinstance(model, tf.keras.Sequential):
+            for layer in model.layers:
+                if isinstance(layer, tf.keras.Model):
+                    print(f"XAI: Found inner functional model '{layer.name}'. Using it for gradients.")
+                    xai_model = layer
+                    manual_pooling_needed = True
+                    break
         
-    Returns:
-        Bytes of the JPEG heatmap image, or None on failure.
-    """
-    
-    # 1. Preprocess the image and get the tensor
-    input_tensor, plot_img_array = _preprocess_for_xai(image_path, processor)
-    
-    if input_tensor is None:
-        print(f"XAI Error: Preprocessing failed for {image_path}")
-        return None
+        if not hasattr(xai_model, 'output_names'):
+            xai_model.output_names = ['output']
+
+        # 3. Setup Grad-CAM
         
-    input_tensor = input_tensor.to(model.device)
-    
-    # 2. Get the feature vector to find the top feature
-    print("XAI: Getting feature vector...")
-    with torch.no_grad():
-        outputs = model(pixel_values=input_tensor)
-        feature_vector = outputs.last_hidden_state.mean(dim=1)
-    
-    top_feature_index = torch.argmax(feature_vector[0]).item()
-    print(f"XAI: Visualizing for top feature index {top_feature_index}")
-
-    # 3. Set up Grad-CAM
-    
-    # Wrap the model's feature extractor
-    class DINOFeatureExtractor(torch.nn.Module):
-        def __init__(self, model):
-            super(DINOFeatureExtractor, self).__init__()
-            self.model = model
+        # Define score function
+        if manual_pooling_needed:
+            # Manually replicate GlobalAveragePooling
+            def score(output):
+                target_channel = output[..., top_feature_index]
+                return tf.reduce_mean(target_channel, axis=(1, 2))
+        else:
+            def score(output):
+                return output[:, top_feature_index]
         
-        def forward(self, x):
-            # Return the mean of patch tokens, same as our feature vector
-            return self.model(pixel_values=x).last_hidden_state.mean(dim=1)
-
-    feature_extractor_model = DINOFeatureExtractor(model)
-    
-    # Target layer for DINOv2 is the final layer norm
-    target_layers = [model.encoder.layer[-1].norm1]
-
-    cam = GradCAM(model=feature_extractor_model, 
-                  target_layers=target_layers, 
-                  reshape_transform=_reshape_transform_vit)
-
-    targets = [FeatureTarget(top_feature_index)]
-
-    # 4. Generate the heatmap
-    print("XAI: Generating Grad-CAM heatmap...")
-    grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
-    grayscale_cam = grayscale_cam[0, :] # Get the 2D heatmap
-
-    # 5. Create and encode the visualization
-    try:
-        print("XAI: Encoding heatmap...")
-        # Use show_cam_on_image to blend the heatmap and image
-        # plot_img_array is now (224, 224, 3) and float (0-1)
-        # grayscale_cam is (224, 224)
-        visualization = show_cam_on_image(plot_img_array, grayscale_cam, use_rgb=True)
+        # Find target layer
+        last_conv_layer = find_last_conv_layer(xai_model)
         
-        # Convert from RGB (0-255 float) to BGR (0-255 int) for cv2
-        visualization_bgr = cv2.cvtColor(visualization, cv2.COLOR_RGB2BGR)
+        # Create Gradcam object
+        gradcam = Gradcam(xai_model, clone=False) 
         
-        # Encode the final image to JPEG format *in memory*
-        success, encoded_image = cv2.imencode('.jpg', visualization_bgr)
+        # Generate Heatmap
+        cam = gradcam(score, input_tensor, penultimate_layer=last_conv_layer.name)
         
-        if not success:
-            raise Exception("Failed to encode XAI heatmap.")
+        if isinstance(cam, list):
+            cam = cam[0]
             
-        return encoded_image.tobytes()
+        cam = np.squeeze(cam)
+
+        # 4. Visualization
+        # Because we set backend='Agg', this create a virtual figure, not a window
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(5, 5))
         
+        ax.imshow(original_img_array)
+        
+        heatmap = np.uint8(cm.jet(cam)[..., :3] * 255)
+        im = ax.imshow(heatmap, cmap='jet', alpha=0.5)
+        
+        ax.set_title(f"Texture Focus (Feature {top_feature_index})")
+        ax.axis('off')
+        
+        # Save to memory buffer
+        buf = io.BytesIO()
+        plt.savefig(buf, format='jpg', bbox_inches='tight')
+        plt.close(fig) # Important to free memory
+        
+        buf.seek(0)
+        return buf.getvalue()
+
     except Exception as e:
-        print(f"XAI Error during visualization: {e}")
+        print(f"XAI Error: {e}")
         return None

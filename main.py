@@ -17,8 +17,8 @@ from xaiutil import generate_xai_heatmap_bytes
 
 
 # --- Configuration & Constants ---
-INDEX_FILE = 'sweater_hnsw_ResNet50_Yolo.bin'
-PATTERN_IDS_FILE = 'pattern_ids_yolo_seg.pkl'
+INDEX_FILE = 'sweater_hnsw_ResNet50.bin'
+PATTERN_IDS_FILE = 'pattern_ids.pkl'
 
 # --- Global State (Loaded on Startup) ---
 app_state = {
@@ -195,41 +195,41 @@ async def recommend_sweaters(file: UploadFile = File(...)):
                 "pattern_id": pattern_id
             })
             
-            # Create an async task to fetch Reddit data in a separate thread
+            # Create an async task to fetch Ravelry data in a separate thread
             # This lets us fetch all 10 posts in parallel instead of one by one
             pattern_id = pattern_id.split("_")[1]  # Capture variable for closure 
             tasks.append(fetch_ravelry_data(pattern_id))
 
-        # --- 4. Fetch Reddit Data (Concurrently) ---
-        print("Fetching Reddit data for 10 items...")
-        reddit_details_list = await asyncio.gather(*tasks)
-        print("Reddit data fetched.")
+        # --- 4. Fetch Ravelry Data (Concurrently) ---
+        print("Fetching Ravelry data for 10 items...")
+        ravelry_details_list = await asyncio.gather(*tasks)
+        print("Ravelry data fetched.")
 
         # --- 5. Combine and Return Results ---
         final_recommendations = []
         for i, base_res in enumerate(base_results):
-            # Combine the base result (ID, distance) with the Reddit data
-            base_res.update(reddit_details_list[i])
+            # Combine the base result (ID, distance) with the Ravelry data
+            base_res.update(ravelry_details_list[i])
             final_recommendations.append(base_res)
 
     
         print("Generating XAI heatmap...")
             # Run the CPU-heavy XAI task in a separate thread
-        # heatmap_bytes = await asyncio.to_thread(
-        #         generate_xai_heatmap_bytes, 
-        #         temp_file_path, 
-        #         model, 
-        #         processor
-        #     )
+        heatmap_bytes = await asyncio.to_thread(
+                generate_xai_heatmap_bytes, 
+                temp_file_path, 
+                model, 
+                processor=None
+            )
             
-        # heatmap_base64 = None
-        # if heatmap_bytes:
-        #     heatmap_base64 = base64.b64encode(heatmap_bytes).decode('utf-8')
-        #     print("Heatmap generated and encoded.")
+        heatmap_base64 = None
+        if heatmap_bytes:
+            heatmap_base64 = base64.b64encode(heatmap_bytes).decode('utf-8')
+            print("Heatmap generated and encoded.")
 
         return {
             "recommendations": final_recommendations,
-            # "xai_heatmap_base64": heatmap_base64,
+            "xai_heatmap_base64": heatmap_base64,
         }
     except Exception as e:
         # Catch any other errors
