@@ -1,21 +1,34 @@
 import numpy as np
 import cv2 
 from ultralytics import YOLO  
-try:
-    # Load YOLO models
-    yolo_seg_model = YOLO('yolov8n-seg.pt')    
-    yolo_pose_model = YOLO('yolov8n-pose.pt')
-    
-except Exception as e:
-    print(f"Error initializing YOLO: {e}")
-    yolo_seg_model = None
-    yolo_pose_model = None
+
+yolo_seg_model = None
+yolo_pose_model = None
+yolo_init_error = None
 
 import cv2
 import numpy as np
 
 KEYPOINT_CONF_THRESH = 0.5  # Confidence threshold for pose keypoints
 TORSO_KEYPOINTS = [5, 6, 11, 12] # Indices for torso crop: l_shoulder, r_shoulder, l_hip, r_hip
+
+
+def _ensure_yolo_models():
+    """Lazy-load YOLO models so module import stays lightweight."""
+    global yolo_seg_model, yolo_pose_model, yolo_init_error
+    if yolo_seg_model is not None and yolo_pose_model is not None:
+        return True
+    if yolo_init_error is not None:
+        return False
+
+    try:
+        yolo_seg_model = YOLO('yolov8n-seg.pt')
+        yolo_pose_model = YOLO('yolov8n-pose.pt')
+        return True
+    except Exception as e:
+        yolo_init_error = e
+        print(f"Error initializing YOLO: {e}")
+        return False
 
 
 
@@ -105,6 +118,9 @@ def extract_and_crop_image(image_path):
 
     cropped_bgr = image # Default fallback of full image
     img_height, img_width = image.shape[:2]
+
+    if not _ensure_yolo_models():
+        return cv2.cvtColor(cropped_bgr, cv2.COLOR_BGR2RGB)
 
     # --- YOLO PROCESSING ---
     try:

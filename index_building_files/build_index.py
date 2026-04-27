@@ -8,7 +8,7 @@ from build_master_vectors import build_master_vectors
 
 # --- Setup ---
 feature_dim = 768 #Feature dimension for DINO features
-data_directory = 'data/directory/here'  # Example directory path, images should be in pattern subfolders
+data_directory = '/Volumes/Extreme Pro/ANN_photos'  # Example directory path, images should be in pattern subfolders
 
 # --- File Names ---
 master_features_file = 'master_features_DINO_yolo_pose.npy'

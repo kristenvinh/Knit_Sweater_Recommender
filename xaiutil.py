@@ -21,7 +21,7 @@ except Exception as e:
     YOLO_AVAILABLE = False
 
 
-def _preprocess_for_xai(img_path, processor):
+def _preprocess_for_xai(img_path, processor, pre_cropped_rgb=None):
     """
     Loads, YOLO-crops, and preprocesses an image for DINOv2 XAI.
     Returns the processed tensor and the original image (as a uint8 array) 
@@ -29,7 +29,14 @@ def _preprocess_for_xai(img_path, processor):
     """
     img_pil = None
     
-    if YOLO_AVAILABLE:
+    if pre_cropped_rgb is not None:
+        try:
+            img_pil = Image.fromarray(pre_cropped_rgb)
+        except Exception as e:
+            print(f"Warning: Failed to use pre-cropped image ({e}). Falling back to standard preprocessing.")
+            img_pil = None
+
+    if img_pil is None and YOLO_AVAILABLE:
         try:
             # This function returns a NumPy array (or None on failure)
             img_numpy_array = extract_and_crop_image(img_path) 
@@ -115,7 +122,7 @@ def _reshape_transform_vit(tensor):
 
 # Function called by main.py ---
 
-def generate_xai_heatmap_bytes(image_path: str, model, processor):
+def generate_xai_heatmap_bytes(image_path: str, model, processor, pre_cropped_rgb=None):
     """
     Generates a Grad-CAM heatmap for the DINOv2 model and returns it as JPEG bytes.
     
@@ -129,13 +136,14 @@ def generate_xai_heatmap_bytes(image_path: str, model, processor):
     """
     
     # 1. Preprocess the image and get the tensor
-    input_tensor, plot_img_array = _preprocess_for_xai(image_path, processor)
+    input_tensor, plot_img_array = _preprocess_for_xai(image_path, processor, pre_cropped_rgb=pre_cropped_rgb)
     
     if input_tensor is None:
         print(f"XAI Error: Preprocessing failed for {image_path}")
         return None
         
-    input_tensor = input_tensor.to(model.device)
+    model_device = next(model.parameters()).device
+    input_tensor = input_tensor.to(model_device)
     
     # 2. Get the feature vector to find the top feature
     print("XAI: Getting feature vector...")

@@ -1,12 +1,18 @@
 # --- Setup ---
 import os
+import sys
 import pickle
 import numpy as np
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
 from dino_feature_extraction import extract_features
 
 
 feature_dim = 768 # Feature dimension for DINO features
-data_directory = 'EXAMPLE_PATH' # Example directory path, files should be in pattern subfolders
+data_directory = '/Volumes/Extreme Pro/ANN_photos'  # Example directory path, files should be in pattern subfolders
 
 # --- Define filenames for the final, averaged features ---
 master_features_file = 'master_features_DINO_yolo_pose.npy'
