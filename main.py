@@ -20,13 +20,15 @@ from xaiutil import generate_xai_heatmap_bytes
 
 
 # --- Configuration & Constants ---
-INDEX_FILE = 'sweater_hnsw_DINO_yolo_pose.bin'
-PATTERN_IDS_FILE = 'pattern_ids_DINO_yolo_pose.pkl'
+INDEX_FILE = 'sweater_hnsw_DINO_yolo_pose_multicentroid.bin'
+PATTERN_IDS_FILE = 'pattern_ids_DINO_yolo_pose_multicentroid.pkl'
+CENTROID_TO_PATTERN_FILE = 'centroid_to_pattern_DINO_yolo_pose.pkl'
 
 # --- Global State (Loaded on Startup) ---
 app_state = {
     "hnsw_index": None,
     "pattern_id_list": None,
+    "centroid_to_pattern": None,  # Maps centroid_idx -> pattern_id for multi-centroid lookup
     "ravelry_client": None,
     "ravelry_cache": {},
     "rate_limit_buckets": {},
@@ -145,27 +147,51 @@ async def load_models_on_startup():
     print(f"✅ Model loading configured as lazy. Expected feature dim: {FEATURE_DIM}")
 
     # 2. Load HNSWlib Index
-    if not os.path.exists(INDEX_FILE):
-        raise FileNotFoundError(f"Index file not found: {INDEX_FILE}. Did you run build_index.py?")
+    # Try multi-centroid first, fall back to legacy if not found
+    index_to_use = INDEX_FILE
+    ids_to_use = PATTERN_IDS_FILE
+    mapping_to_use = CENTROID_TO_PATTERN_FILE
     
-    print(f"Loading HNSW index from {INDEX_FILE}...")
+    if not os.path.exists(index_to_use):
+        # Try legacy filenames for backward compatibility
+        legacy_index = 'sweater_hnsw_DINO_yolo_pose.bin'
+        legacy_ids = 'pattern_ids_DINO_yolo_pose.pkl'
+        
+        if os.path.exists(legacy_index):
+            print(f"⚠️  Multi-centroid index not found, using legacy index: {legacy_index}")
+            index_to_use = legacy_index
+            ids_to_use = legacy_ids
+            mapping_to_use = None  # Legacy mode, no mapping file
+        else:
+            raise FileNotFoundError(f"Index file not found: {INDEX_FILE} or {legacy_index}. Did you run build_index.py?")
+    
+    print(f"Loading HNSW index from {index_to_use}...")
     index = hnswlib.Index(space='cosine', dim=FEATURE_DIM)
-    index.load_index(INDEX_FILE)
+    index.load_index(index_to_use)
     index.set_ef(50)  # Set search-time efficiency (higher is more accurate but slower)
     app_state["hnsw_index"] = index
     print("✅ HNSW index loaded.")
 
     # 3. Load Pattern ID Map
-    if not os.path.exists(PATTERN_IDS_FILE):
-        raise FileNotFoundError(f"Pattern ID file not found: {PATTERN_IDS_FILE}.")
+    if not os.path.exists(ids_to_use):
+        raise FileNotFoundError(f"Pattern ID file not found: {ids_to_use}.")
     
-    print(f"Loading Pattern ID map from {PATTERN_IDS_FILE}...")
-    with open(PATTERN_IDS_FILE, 'rb') as f:
+    print(f"Loading Pattern ID map from {ids_to_use}...")
+    with open(ids_to_use, 'rb') as f:
         app_state["pattern_id_list"] = pickle.load(f)
     print("✅ Pattern ID map loaded.")
+    
+    # 4. Load Centroid-to-Pattern Mapping (for multi-centroid mode)
+    if mapping_to_use and os.path.exists(mapping_to_use):
+        print(f"Loading centroid-to-pattern mapping from {mapping_to_use}...")
+        with open(mapping_to_use, 'rb') as f:
+            app_state["centroid_to_pattern"] = pickle.load(f)
+        print(f"✅ Multi-centroid mapping loaded ({len(app_state['centroid_to_pattern'])} centroids).")
+    else:
+        print("ℹ️  Running in legacy single-centroid mode (no multi-centroid mapping found).")
+        app_state["centroid_to_pattern"] = None
 
-
-    # 4. Initialize Ravelry Client (replaces PRAW)
+    # 5. Initialize Ravelry Client (replaces PRAW)
     print("Loading .env file and initializing Ravelry client...")
     load_dotenv()
     try:
@@ -344,33 +370,71 @@ async def recommend_sweaters(
         print("Querying HNSW index...")
         query_start = time.perf_counter()
         index = app_state["hnsw_index"]
-        # k=10 to get 10 recommendations
-        # knn_query returns 2D arrays (for batch queries), so we take the first item [0]
-        labels, distances = index.knn_query(feature_vector, k=10)
-        phase_times["index_query_sec"] = time.perf_counter() - query_start
+        centroid_to_pattern = app_state["centroid_to_pattern"]
         
-        query_labels = labels[0]
-        query_distances = distances[0]
+        if centroid_to_pattern:
+            # Multi-centroid mode: query k=30 to account for deduplication
+            print("  Using multi-centroid retrieval...")
+            labels, distances = index.knn_query(feature_vector, k=30)
+            query_labels = labels[0]
+            query_distances = distances[0]
+            
+            # Deduplicate: group by pattern_id and keep best distance for each
+            pattern_to_best_distance = {}
+            for centroid_idx, distance in zip(query_labels, query_distances):
+                pattern_id = centroid_to_pattern[int(centroid_idx)]
+                if pattern_id not in pattern_to_best_distance:
+                    pattern_to_best_distance[pattern_id] = distance
+                else:
+                    # Keep the better (smaller) distance
+                    pattern_to_best_distance[pattern_id] = min(
+                        pattern_to_best_distance[pattern_id], 
+                        distance
+                    )
+            
+            # Sort by distance and take top 10
+            ranked_patterns = sorted(
+                pattern_to_best_distance.items(), 
+                key=lambda x: x[1]
+            )[:10]
+            
+            query_labels = [p[0] for p in ranked_patterns]
+            query_distances = np.array([p[1] for p in ranked_patterns])
+        else:
+            # Legacy mode: single centroid per pattern
+            print("  Using legacy single-centroid retrieval...")
+            labels, distances = index.knn_query(feature_vector, k=10)
+            query_labels = labels[0]
+            query_distances = distances[0]
+        
+        phase_times["index_query_sec"] = time.perf_counter() - query_start
 
         # --- 3. Map IDs & Prep for Ravelry ---
         print("Mapping results to pattern IDs...")
         pattern_list = app_state["pattern_id_list"]
+        centroid_to_pattern = app_state["centroid_to_pattern"]
         
         tasks = []
         base_results = []
         
         for i, index_label in enumerate(query_labels):
-            pattern_id = pattern_list[index_label]
+            # Handle both legacy (index) and multi-centroid (pattern_id) modes
+            if centroid_to_pattern:
+                # Multi-centroid mode: index_label is already a pattern_id (string)
+                pattern_id = index_label
+            else:
+                # Legacy mode: index_label is an index into pattern_list
+                pattern_id = pattern_list[int(index_label)]
             
             base_results.append({
                 "pattern_id": pattern_id,
                 "distance": float(query_distances[i]),
             })
             
-            # Create an async task to fetch Reddit data in a separate thread
-            # This lets us fetch all 10 posts in parallel instead of one by one
-            pattern_id = pattern_id.split("_")[1]  # Capture variable for closure 
-            tasks.append(fetch_ravelry_data(pattern_id))
+            # Extract pattern number for Ravelry lookup
+            # Pattern IDs are typically format like "pattern_12345"
+            pattern_number = pattern_id.split("_")[-1] if "_" in str(pattern_id) else str(pattern_id)
+            tasks.append(fetch_ravelry_data(pattern_number))
 
         # --- 4. Fetch Reddit Data (Concurrently) ---
         print("Fetching Reddit data for 10 items...")
