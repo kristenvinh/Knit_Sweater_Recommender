@@ -11,7 +11,7 @@ import httpx
 import uvicorn
 import numpy as np
 import cv2
-from fastapi import FastAPI, UploadFile, File, HTTPException, Header
+from fastapi import FastAPI, UploadFile, File, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import base64
@@ -29,6 +29,7 @@ app_state = {
     "pattern_id_list": None,
     "ravelry_client": None,
     "ravelry_cache": {},
+    "rate_limit_buckets": {},
 }
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
@@ -50,7 +51,20 @@ def _parse_csv_env(var_name: str, default_values: list[str]) -> list[str]:
 
 
 ALLOWED_ORIGINS = _parse_csv_env("CORS_ALLOWED_ORIGINS", DEFAULT_ALLOWED_ORIGINS)
-API_KEY = os.environ.get("SWEATER_RECOMMENDER_API_KEY")
+DEFAULT_CORS_ORIGIN_REGEX = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^null$"
+CORS_ORIGIN_REGEX = os.environ.get("CORS_ALLOWED_ORIGIN_REGEX", DEFAULT_CORS_ORIGIN_REGEX)
+RATE_LIMIT_WINDOW_SEC = int(os.environ.get("RATE_LIMIT_WINDOW_SEC", "60"))
+RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("RATE_LIMIT_MAX_REQUESTS", "30"))
+
+
+def _get_api_key() -> str | None:
+    """Resolve API key from Ravelry credentials only."""
+    return os.environ.get("RAVELRY_PERSONAL_KEY") or os.environ.get("RAVELRY_ACCESS_KEY")
+
+
+def _is_api_key_enforcement_enabled() -> bool:
+    raw_value = (os.environ.get("REQUIRE_API_KEY") or "false").strip().lower()
+    return raw_value in {"1", "true", "yes", "on"}
 
 # --- FastAPI App Initialization ---
 app = FastAPI(
@@ -62,6 +76,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-API-Key"],
@@ -70,14 +85,50 @@ app.add_middleware(
 
 def _require_api_key(x_api_key: str | None) -> None:
     """Reject requests unless the configured API key is supplied."""
-    if not API_KEY:
+    if not _is_api_key_enforcement_enabled():
         return
+
+    api_key = _get_api_key()
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="API key enforcement is enabled but no key is configured.",
+        )
 
     if not x_api_key:
         raise HTTPException(status_code=401, detail="Missing API key.")
 
-    if x_api_key != API_KEY:
+    if x_api_key != api_key:
         raise HTTPException(status_code=403, detail="Invalid API key.")
+
+
+def _get_client_ip(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        # Use the left-most address as the original client.
+        return forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _enforce_rate_limit(request: Request) -> None:
+    client_ip = _get_client_ip(request)
+    now = time.time()
+    window_start = now - RATE_LIMIT_WINDOW_SEC
+
+    bucket = app_state["rate_limit_buckets"].get(client_ip, [])
+    bucket = [timestamp for timestamp in bucket if timestamp >= window_start]
+
+    if len(bucket) >= RATE_LIMIT_MAX_REQUESTS:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"Rate limit exceeded. Max {RATE_LIMIT_MAX_REQUESTS} requests per "
+                f"{RATE_LIMIT_WINDOW_SEC} seconds."
+            ),
+        )
+
+    bucket.append(now)
+    app_state["rate_limit_buckets"][client_ip] = bucket
 
 # --- Startup Event Handler ---
 @app.on_event("startup")
@@ -87,6 +138,8 @@ async def load_models_on_startup():
     It loads all our heavy assets into memory.
     """
     print("--- Server starting up... ---")
+    print(f"CORS allowlist: {ALLOWED_ORIGINS}")
+    print(f"CORS allow-origin regex: {CORS_ORIGIN_REGEX}")
 
     # 1. DINOv2/YOLO are now loaded lazily on first request.
     print(f"✅ Model loading configured as lazy. Expected feature dim: {FEATURE_DIM}")
@@ -133,12 +186,27 @@ async def load_models_on_startup():
         print(f"🔥 FAILED to initialize Ravelry client: {e}")
         print("Please check your .env file for RAVELRY_USERNAME and RAVELRY_PASSWORD.")
 
-    if not API_KEY:
-        print("⚠️  SWEATER_RECOMMENDER_API_KEY is not set. /recommend is currently unauthenticated.")
+    if _is_api_key_enforcement_enabled():
+        if not _get_api_key():
+            print(
+                "🔥 REQUIRE_API_KEY is enabled but no key found in RAVELRY_PERSONAL_KEY or RAVELRY_ACCESS_KEY. "
+                "Authenticated requests will fail until keys are configured."
+            )
+        else:
+            print("✅ API key enforcement enabled for /recommend.")
     else:
-        print("✅ API key protection enabled for /recommend.")
+        print("ℹ️  API key enforcement is disabled (set REQUIRE_API_KEY=true to enable).")
         
     print("--- Server startup complete. Ready for requests. ---")
+
+
+@app.on_event("shutdown")
+async def close_clients_on_shutdown():
+    client = app_state.get("ravelry_client")
+    if client is not None:
+        await client.aclose()
+        app_state["ravelry_client"] = None
+        print("✅ Ravelry client closed.")
 
 # --- Helper functions ---
 def _validate_upload(file: UploadFile):
@@ -221,6 +289,7 @@ async def fetch_ravelry_data(pattern_id: str):
 # --- API Endpoint ---
 @app.post("/recommend")
 async def recommend_sweaters(
+    request: Request,
     file: UploadFile = File(...),
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
 ):
@@ -236,6 +305,7 @@ async def recommend_sweaters(
     """
     
     _require_api_key(x_api_key)
+    _enforce_rate_limit(request)
 
     request_start = time.perf_counter()
     phase_times = {}
