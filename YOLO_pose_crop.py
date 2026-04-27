@@ -11,6 +11,7 @@ import numpy as np
 
 KEYPOINT_CONF_THRESH = 0.5  # Confidence threshold for pose keypoints
 TORSO_KEYPOINTS = [5, 6, 11, 12] # Indices for torso crop: l_shoulder, r_shoulder, l_hip, r_hip
+MIN_KEYPOINTS_REQUIRED = 2  # Relax from 4 to 2+ keypoints for robustness
 
 
 def _ensure_yolo_models():
@@ -34,20 +35,21 @@ def _ensure_yolo_models():
 
 def _get_keypoint_crop(keypoints, confidences, img_shape):
     h, w = img_shape
-        # Adjust these values as needed -- smallest acceptable crop size, otherwise not enough 
-    #of the image/sweater is left. Helps prevent too tight crops.
     MIN_CROP_WIDTH = .25 * w  # 25% of image width
     MIN_CROP_HEIGHT = .25 * h  # 25% of image height
 
     torso_points_xy = []
+    detected_keypoint_count = 0
     
     for kpt_index in TORSO_KEYPOINTS:
         if confidences[kpt_index] > KEYPOINT_CONF_THRESH:
             torso_points_xy.append(keypoints[kpt_index])
-            
-    # Require all four torso keypoints to ensure good crop, otherwise fallback to YOLO Segment.
-    if len(torso_points_xy) < 4:
-        return None # Signal failure
+            detected_keypoint_count += 1
+    
+    # Relax requirement: accept 2+ keypoints instead of all 4
+    if detected_keypoint_count < MIN_KEYPOINTS_REQUIRED:
+        print(f"  -> Insufficient keypoints ({detected_keypoint_count}). Falling back to segmentation.")
+        return None  # Signal failure
 
     torso_points_xy = np.array(torso_points_xy)
     
@@ -57,52 +59,75 @@ def _get_keypoint_crop(keypoints, confidences, img_shape):
     x2 = int(np.max(torso_points_xy[:, 0]))
     y2 = int(np.max(torso_points_xy[:, 1]))
     
-    # Add 20% padding to the box
     box_h, box_w = y2 - y1, x2 - x1
     
-    # Avoid division by zero or tiny boxes if h/w is 0
+    # Avoid division by zero or tiny boxes
     if box_h <= 0 or box_w <= 0:
-        return None # Not a valid box to pad
-
-    # Set padding for box of 20%, adjust as needed to ensure full sweater    
-    padding_y = int(box_h * 0.20)
-    padding_x = int(box_w * 0.20)
+        return None
+    
+    # Smart padding: scale based on how many keypoints we have
+    # More keypoints = confidence to use tighter padding; fewer keypoints = use more padding for safety
+    if detected_keypoint_count >= 4:
+        padding_factor = 0.20
+    elif detected_keypoint_count == 3:
+        padding_factor = 0.30
+    else:  # 2 keypoints
+        padding_factor = 0.40
+    
+    padding_y = int(box_h * padding_factor)
+    padding_x = int(box_w * padding_factor)
     
     # Apply padding and clamp to image boundaries
     x1 = max(0, x1 - padding_x)
     y1 = max(0, y1 - padding_y)
     x2 = min(w, x2 + padding_x)
     y2 = min(h, y2 + padding_y)
-        
-    # Calculate the final dimensions *after* padding and clamping
+    
+    # Calculate the final dimensions after padding and clamping
     final_width = x2 - x1
     final_height = y2 - y1
     
-    # Check if the final crop meets the minimum size requirements
-    # Again ensures there isn't too small a crop
+    # Enforce minimum crop size to prevent losing sweater detail
     if final_height >= MIN_CROP_HEIGHT and final_width >= MIN_CROP_WIDTH:
-        print(f"Final crop size: width={final_width}, height={final_height}")
-        print(f"Original size: width={w}, height={h}")
+        print(f"  -> Keypoint crop: {detected_keypoint_count} keypoints, size={final_width}x{final_height}")
         return (y1, y2, x1, x2)
     else:
-        # Return None if the crop is too small
+        print(f"  -> Crop too small ({final_width}x{final_height}). Falling back to segmentation.")
         return None
     
-#YOLO Segment fallback crop
+#YOLO Segment fallback crop - improved to use full mask bounds with smart padding
 def _get_mask_crop(best_mask_resized):
+    """Extract crop from full segmentation mask with smart expansion to prevent too-small crops."""
     y_indices, x_indices = np.where(best_mask_resized > 0)
     
-    if y_indices.size > 0:
-        x1, x2 = x_indices.min(), x_indices.max()
-        y1, y2 = y_indices.min(), y_indices.max()
-
-        h = y2 - y1
-        # Apply vertical cropping adjustments
-        crop_y1_new = max(y1, y1 + int(h * 0.1)) 
-        crop_y2_new = min(y2, y1 + int(h * 0.8))
-        
-        if crop_y1_new < crop_y2_new and x1 < x2:
-            return (crop_y1_new, crop_y2_new, x1, x2)
+    if y_indices.size == 0:
+        return None  # Empty mask
+    
+    # Get full bounding box from mask (improved from aggressive 10-80% vertical crop)
+    x1, x2 = x_indices.min(), x_indices.max()
+    y1, y2 = y_indices.min(), y_indices.max()
+    
+    box_h = y2 - y1
+    box_w = x2 - x1
+    
+    if box_h <= 0 or box_w <= 0:
+        return None
+    
+    # Apply smart padding: expand to ensure we capture full sweater context
+    padding_y = int(box_h * 0.15)  # 15% vertical padding
+    padding_x = int(box_w * 0.10)  # 10% horizontal padding
+    
+    img_h, img_w = best_mask_resized.shape
+    
+    # Apply padding and clamp to image boundaries
+    crop_y1 = max(0, y1 - padding_y)
+    crop_y2 = min(img_h, y2 + padding_y)
+    crop_x1 = max(0, x1 - padding_x)
+    crop_x2 = min(img_w, x2 + padding_x)
+    
+    if crop_y1 < crop_y2 and crop_x1 < crop_x2:
+        print(f"  -> Segmentation crop: size={crop_x2-crop_x1}x{crop_y2-crop_y1}")
+        return (crop_y1, crop_y2, crop_x1, crop_x2)
     
     return None
 
