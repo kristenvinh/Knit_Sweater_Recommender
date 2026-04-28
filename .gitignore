@@ -7,3 +7,5 @@ index_building_files/
 venv/
 *.pyc
 .DS_Store
+sweater_hnsw_DINO_yolo_pose_multicentroid.bin
+master_features_DINO_yolo_pose_multicentroid.npy
