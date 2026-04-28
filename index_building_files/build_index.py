@@ -7,15 +7,15 @@ import time
 from build_master_vectors import build_master_vectors
 
 # --- Setup ---
-feature_dim = 768 #Feature dimension for DINO features
+feature_dim = 2048 #Feature dimension for ResNet features
 data_directory = '/Volumes/Extreme Pro/ANN_photos'  # Example directory path, images should be in pattern subfolders
 
 # --- File Names (Multi-centroid format) ---
-master_features_file = 'master_features_DINO_yolo_pose_multicentroid.npy'
-pattern_ids_file = 'pattern_ids_DINO_yolo_pose_multicentroid.pkl'
-pattern_mapping_file = 'pattern_to_centroids_DINO_yolo_pose.pkl'  # Maps centroid_idx -> pattern_id
-index_name = 'sweater_hnsw_DINO_yolo_pose_multicentroid.bin'
-mapping_file = 'centroid_to_pattern_DINO_yolo_pose.pkl'  # For query-time lookup
+master_features_file = 'master_features_resnet_yolo_pose_multicentroid.npy'
+pattern_ids_file = 'pattern_ids_resnet_yolo_pose_multicentroid.pkl'
+pattern_mapping_file = 'pattern_to_centroids_resnet_yolo_pose.pkl'  # Maps centroid_idx -> pattern_id
+index_name = 'sweater_hnsw_resnet_yolo_pose_multicentroid.bin'
+mapping_file = 'centroid_to_pattern_resnet_yolo_pose.pkl'  # For query-time lookup
 # ---
 
 

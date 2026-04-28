@@ -9,3 +9,6 @@ venv/
 .DS_Store
 sweater_hnsw_DINO_yolo_pose_multicentroid.bin
 master_features_DINO_yolo_pose_multicentroid.npy
+master_features_resnet_yolo_pose_multicentroid.npy
+pattern_ids_resnet_yolo_pose_multicentroid.pkl
+sweater_hnsw_resnet_yolo_pose_multicentroid.bin
