@@ -14,14 +14,14 @@ from dino_feature_extraction import extract_features
 
 feature_dim = 768 # Feature dimension for DINO features
 data_directory = '/Volumes/Extreme Pro/ANN_photos'  # Example directory path, files should be in pattern subfolders
-n_clusters = 4  # K-means clusters per pattern (3-5 recommended, 4 is good balance)
+n_clusters = 5  # K-means clusters per pattern (3-5 recommended, 4 is good balance)
 
 # --- Define filenames for the multi-centroid features ---
 # New format: stores all centroids for all patterns in a flat array
 # Mapping: pattern_to_centroid_indices maps each pattern to its centroids in the flat array
-master_features_file = 'master_features_DINO_yolo_pose_multicentroid.npy'
-pattern_ids_file = 'pattern_ids_DINO_yolo_pose_multicentroid.pkl'
-pattern_mapping_file = 'pattern_to_centroids_DINO_yolo_pose.pkl'  # Maps pattern_id -> [centroid_indices]
+master_features_file = 'master_features_DINO_yolo_pose_multicentroid5.npy'
+pattern_ids_file = 'pattern_ids_DINO_yolo_pose_multicentroid5.pkl'
+pattern_mapping_file = 'pattern_to_centroids_DINO_yolo_pose5.pkl'  # Maps pattern_id -> [centroid_indices]
 # For backward compatibility, keep the old filename pattern available
 legacy_features_file = 'master_features_DINO_yolo_pose.npy'
 legacy_ids_file = 'pattern_ids_DINO_yolo_pose.pkl'
